@@ -42,9 +42,7 @@ jobs:
         with:
           context: .
           push: true
-          tags: |
-            type=raw,value=latest
-            type=sha,format=short
+          tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
