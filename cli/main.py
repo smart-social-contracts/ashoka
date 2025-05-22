@@ -167,10 +167,16 @@ def evaluate_command(args, config):
         # Display results
         print(f"\n=== Proposal Evaluation ===\n")
         print(f"Title: {proposal['title']}")
-        print(f"Overall Score: {evaluation['total_score']:.2f}/10.0")
+        
+        # Normalize total score to 0-10 scale
+        normalized_total = evaluation['total_score'] / 10 if evaluation['total_score'] > 10 else evaluation['total_score']
+        print(f"Overall Score: {normalized_total:.2f}/10.0")
+        
         print("\nScores by Criterion:")
         for criterion, score in evaluation['scores'].items():
-            print(f"  {criterion.capitalize()}: {score * 10:.2f}/10.0")
+            # Normalize individual scores to 0-10 scale
+            normalized_score = score if score <= 10 else score / 10
+            print(f"  {criterion.capitalize()}: {normalized_score:.2f}/10.0")
         
         print("\nFeedback:")
         print(evaluation['feedback'])
