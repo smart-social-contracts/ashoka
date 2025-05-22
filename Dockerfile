@@ -10,11 +10,11 @@ RUN apt-get update && apt-get install -y \
 # --- Ollama installation ---
 RUN curl -fsSL https://ollama.com/install.sh | sh
 
-# --- Add ollama to path + preload model ---
+# --- Add ollama to path ---
 ENV PATH="/root/.ollama/bin:${PATH}"
 
-# Pre-pull a model (optional)
-RUN ollama pull llama3
+# We'll pull the model at runtime instead
+# Models will be downloaded when container starts
 
 # --- Python environment ---
 WORKDIR /app

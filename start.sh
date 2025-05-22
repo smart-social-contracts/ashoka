@@ -11,6 +11,10 @@ done
 
 echo "Ollama is up and running at http://localhost:11434"
 
+# Pull the llama3 model
+echo "Pulling llama3 model..."
+ollama pull llama3
+
 # Make the main CLI script executable if needed
 if [ -f /app/cli/main.py ]; then
   chmod +x /app/cli/main.py
