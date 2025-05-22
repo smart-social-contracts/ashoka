@@ -1,0 +1,17 @@
+image: smartsocialcontracts/ashoka:latest
+
+tasks:
+  - name: Start Ollama
+    command: |
+      echo "Starting Ashoka AI Governor environment..."
+      # Ollama is started automatically by the container's startup script
+
+ports:
+  - port: 11434
+    onOpen: ignore
+    visibility: public
+
+github:
+  prebuilds:
+    master: true
+    branches: true
