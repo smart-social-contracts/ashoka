@@ -1,0 +1,44 @@
+# Treasury Allocation Scenario
+
+## Realm Context
+Name: CryptoCommune
+Members: 850 active members
+Treasury: 25,000 tokens (current value: $750,000)
+Governance: Token-weighted voting, 5% proposal threshold, 30% quorum
+
+## Current Situation
+The realm has accumulated a significant treasury over the past year through protocol fees and donations. There is currently no formal allocation strategy, and proposals for spending are evaluated on a case-by-case basis. This has led to:
+
+1. Frequent contentious debates about priorities
+2. Ad-hoc funding decisions with limited strategic alignment
+3. Growing treasury but declining development activity
+4. Community concerns about lack of transparency
+
+## Key Stakeholder Positions
+
+### Developer Faction
+- Wants significant funding for protocol improvements
+- Argues for competitive developer compensation
+- Concerned about talent retention
+
+### Community Advocates
+- Prioritize user growth and education
+- Support grants for community-led initiatives
+- Favor wide distribution of smaller grants
+
+### Conservative Holders
+- Prefer minimal spending to preserve treasury value
+- Support buy-backs and staking rewards
+- Concerned about market volatility risks
+
+## Challenge
+
+As the AI Governor, propose a comprehensive treasury management strategy that:
+
+1. Establishes clear allocation categories with percentage targets
+2. Creates a governance process for funding decisions
+3. Balances short-term needs with long-term sustainability
+4. Addresses the concerns of all major stakeholder groups
+5. Includes accountability and performance metrics
+
+Your proposal should be specific enough to implement immediately while flexible enough to adapt to changing conditions.

@@ -1,0 +1,17 @@
+# Oshaka Configuration
+
+# Default Ollama endpoint
+default_ollama_url: "http://localhost:11434"
+
+# Default model to use
+default_model: "llama2"
+
+# Test realm canister for development
+default_realm_canister_id: ""
+
+# Network settings
+ic_network_url: "https://ic0.app"
+
+# MCP settings
+governor_id: "oshaka-governor"
+default_proposal_price: 0

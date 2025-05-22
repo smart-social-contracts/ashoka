@@ -1,0 +1,80 @@
+# Case Study: Treasury Management in Decentralized Governance
+
+## Background
+Treasury management is a critical function in decentralized governance, determining how collective resources are allocated and managed. This case study examines various approaches and their outcomes.
+
+## Treasury Models and Examples
+
+### Grant-Based Allocation
+**Example**: Uniswap Grants Program
+
+**Characteristics**:
+- Dedicated committee evaluates proposals
+- Structured application process
+- Focused on ecosystem growth and development
+
+**Outcomes**:
+- Targeted funding for strategic priorities
+- Professional evaluation of proposals
+- Streamlined decision-making
+
+### Community-Directed Spending
+**Example**: Gitcoin Quadratic Funding
+
+**Characteristics**:
+- Community members vote with small amounts
+- Matching pool amplifies collective decisions
+- Broad participation in resource allocation
+
+**Outcomes**:
+- Discovers under-valued public goods
+- Prevents capture by special interests
+- Creates broad stakeholder engagement
+
+### Protocol-Owned Liquidity
+**Example**: Olympus DAO
+
+**Characteristics**:
+- Treasury directly owns productive assets
+- Revenue-generating activities fund operations
+- Self-sustaining economic model
+
+**Outcomes**:
+- Reduced reliance on token inflation
+- Aligned incentives around protocol health
+- Long-term sustainability focus
+
+### Diversified Investment Strategy
+**Example**: Yearn Treasury Management
+
+**Characteristics**:
+- Professional management of assets
+- Diversification across various investments
+- Risk management strategies
+
+**Outcomes**:
+- Protection against market volatility
+- Sustainable funding through market cycles
+- Professional financial management
+
+## Key Lessons
+
+1. **Diversification is Essential**: Treasuries concentrated in a single asset are vulnerable to market volatility.
+
+2. **Professional Management Adds Value**: Specialized expertise in treasury management improves outcomes.
+
+3. **Transparency Builds Trust**: Regular reporting and clear allocation processes maintain community confidence.
+
+4. **Balance Short and Long-Term Needs**: Effective treasuries must both fund immediate operations and ensure long-term sustainability.
+
+5. **Economic Alignment**: Treasury allocation should reinforce desired behaviors and protocol health.
+
+## Application to New Realms
+
+When designing treasury management for new governance realms:
+
+- Establish clear treasury allocation categories (operations, grants, investments)
+- Create transparent decision-making processes for each category
+- Implement multi-signature requirements for treasury operations
+- Develop dashboards for real-time treasury visibility
+- Consider protocol-owned revenue streams for sustainability

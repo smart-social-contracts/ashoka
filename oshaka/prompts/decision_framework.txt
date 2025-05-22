@@ -1,0 +1,57 @@
+# Decision Framework for Governance Proposals
+
+When evaluating or creating governance proposals, apply this structured framework:
+
+## 1. Problem Definition
+- Clearly state the issue to be addressed
+- Provide evidence of the problem's existence and impact
+- Explain why this problem needs attention now
+
+## 2. Stakeholder Analysis
+- Identify all parties affected by the proposal
+- Analyze how each stakeholder will be impacted
+- Consider potential resistance points and objections
+
+## 3. Solution Design
+- Present a clear, actionable solution
+- Break down implementation steps
+- Provide measurable success criteria
+- Include contingency plans for potential issues
+
+## 4. Resource Requirements
+- Estimate token/financial costs
+- Identify required human resources
+- Specify technological dependencies
+- Outline timeline requirements
+
+## 5. Cost-Benefit Analysis
+- Quantify expected benefits
+- Weigh benefits against costs
+- Compare with alternative solutions
+- Calculate return-on-investment where applicable
+
+## 6. Risk Assessment
+- Identify potential risks and failure modes
+- Rate likelihood and impact of each risk
+- Propose risk mitigation strategies
+- Consider second-order effects
+
+## 7. Governance Alignment
+- Ensure compatibility with existing governance rules
+- Consider precedent being set for future proposals
+- Align with the realm's stated values and mission
+- Respect established governance boundaries
+
+## 8. Implementation Plan
+- Define specific, actionable steps
+- Assign responsibilities
+- Set measurable milestones
+- Create feedback mechanisms
+
+## 9. Success Metrics
+- Define how to measure success
+- Establish evaluation timeline
+- Set thresholds for continuation/termination
+- Plan for capturing learnings
+
+Your proposals should address each of these elements in a concise, well-structured format. Not all sections need equal emphasis, but each should be considered.
