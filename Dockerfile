@@ -4,7 +4,7 @@ FROM nvidia/cuda:12.1.0-base-ubuntu20.04
 ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install -y \
-    curl git python3 python3-pip unzip sudo nano wget \
+    curl git python3 python3-pip unzip sudo nano wget netcat \
     && apt-get clean
 
 # --- Ollama installation ---
@@ -17,14 +17,16 @@ ENV PATH="/root/.ollama/bin:${PATH}"
 RUN ollama pull llama3
 
 # --- Python environment ---
+WORKDIR /app
 COPY requirements.txt .
 RUN pip3 install --upgrade pip
 RUN pip3 install -r requirements.txt
 
 # --- Copy ashoka code ---
-COPY ashoka/ /app/ashoka/
-COPY start.sh /start.sh
-RUN chmod +x /start.sh
+COPY cli/ /app/cli/
+COPY tests/ /app/tests/
+COPY start.sh /app/start.sh
+RUN chmod +x /app/start.sh
 
-WORKDIR /app/ashoka
-CMD ["/start.sh"]
+WORKDIR /app
+CMD ["/app/start.sh"]
