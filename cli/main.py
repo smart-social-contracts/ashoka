@@ -132,9 +132,24 @@ def evaluate_command(args, config):
         mock_summary = mock_realm.get_summary()
         scenario = f"{scenario}\n\nCurrent Realm State:\n{mock_summary}"
     
-    # Send scenario to LLM
+    # Send scenario to LLM with JSON formatting instructions
     logger.info("Sending scenario to AI governor for evaluation")
-    response = ollama_client.send_prompt(scenario)
+    json_instructions = """
+    Based on the scenario above, create a governance proposal.
+    Your response MUST be formatted as a valid JSON object with the following structure:
+    {
+        "title": "A clear, concise title for your proposal",
+        "content": "Detailed content of your proposal, including rationale and implementation details",
+        "summary": "A brief summary of your proposal's main points",
+        "tags": ["tag1", "tag2"] 
+    }
+    
+    Ensure your response is ONLY the JSON object, nothing else before or after it.
+    """
+    
+    # Combine scenario with instructions
+    full_prompt = f"{scenario}\n\n{json_instructions}"
+    response = ollama_client.send_prompt(full_prompt)
     
     try:
         # Parse proposal
