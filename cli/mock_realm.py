@@ -7,7 +7,7 @@ import json
 import uuid
 from typing import Dict, Any, Optional
 
-logger = logging.getLogger("oshaka.mock_realm")
+logger = logging.getLogger("ashoka.mock_realm")
 
 class MockRealm:
     """Mock implementation of a GGG-compliant realm for testing."""

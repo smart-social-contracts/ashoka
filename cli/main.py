@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Oshaka - Off-chain AI governor for GGG-compliant realms
+ashoka - Off-chain AI governor for GGG-compliant realms
 """
 
 import argparse
@@ -21,7 +21,7 @@ import yaml
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-logger = logging.getLogger("oshaka")
+logger = logging.getLogger("ashoka")
 
 def load_config():
     """Load configuration from config.yaml."""
@@ -49,7 +49,7 @@ def create_command(args, config):
     response = ollama_client.send_prompt(governor_prompt)
     
     logger.info(f"Governor initialized with response: {response[:100]}...")
-    logger.info("You can now use 'oshaka run' to connect to a realm canister")
+    logger.info("You can now use 'ashoka run' to connect to a realm canister")
 
 def run_command(args, config):
     """Connect to a realm canister and propose improvements."""
@@ -94,9 +94,9 @@ def run_command(args, config):
         mcp_message = ProposalOfferMessage(
             title=proposal['title'],
             content=proposal['content'],
-            creator=config.get('governor_id', f"oshaka-{uuid.uuid4().hex[:8]}"),
+            creator=config.get('governor_id', f"ashoka-{uuid.uuid4().hex[:8]}"),
             price=config.get('default_proposal_price', 0),
-            metadata={"source": "oshaka", "target_realm": args.realm_canister_id}
+            metadata={"source": "ashoka", "target_realm": args.realm_canister_id}
         )
         
         # Print MCP message to stdout
@@ -283,11 +283,11 @@ def benchmark_command(args, config):
         logger.info(f"Benchmark results saved to {args.output}")
 
 def main():
-    """Main entry point for the Oshaka CLI."""
+    """Main entry point for the ashoka CLI."""
     config = load_config()
     
     parser = argparse.ArgumentParser(
-        description="Oshaka - Off-chain AI governor for GGG-compliant realms"
+        description="ashoka - Off-chain AI governor for GGG-compliant realms"
     )
     subparsers = parser.add_subparsers(dest="command", help="Command to execute")
     

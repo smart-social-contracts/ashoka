@@ -7,7 +7,7 @@ import json
 import re
 from typing import Dict, Any, List, Tuple
 
-logger = logging.getLogger("oshaka.evaluator")
+logger = logging.getLogger("ashoka.evaluator")
 
 # Criteria descriptions for evaluation
 CRITERIA_DESCRIPTIONS = {

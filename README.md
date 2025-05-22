@@ -1,26 +1,26 @@
 
-# Oshaka
+# ashoka
 
 An off-chain AI governor for GGG-compliant realms on the Internet Computer.
 
 ## Overview
 
-Oshaka connects to decentralized realms and proposes improvements in governance by leveraging AI models. It uses a local or remote LLM (served via Ollama) and connects to a GGG-compliant realm canister.
+ashoka connects to decentralized realms and proposes improvements in governance by leveraging AI models. It uses a local or remote LLM (served via Ollama) and connects to a GGG-compliant realm canister.
 
 ## Installation
 
 1. Clone this repository
 2. Install dependencies: `pip install -r requirements.txt`
-3. Make the main script executable: `chmod +x oshaka/main.py`
+3. Make the main script executable: `chmod +x ashoka/main.py`
 
 ## Usage
 
-Oshaka provides two main commands:
+ashoka provides two main commands:
 
 ### Initialize an AI Governor
 
 ```bash
-oshaka create [ollama_url]
+ashoka create [ollama_url]
 ```
 
 This command:
@@ -31,7 +31,7 @@ This command:
 ### Run the AI Governor on a Realm
 
 ```bash
-oshaka run [ollama_url] <realm_canister_id> [--mcp-only]
+ashoka run [ollama_url] <realm_canister_id> [--mcp-only]
 ```
 
 This command:
@@ -44,7 +44,7 @@ This command:
 
 ## Model Context Protocol (MCP)
 
-Oshaka supports the Model Context Protocol (MCP), which enables structured interactions between LLMs and external systems. With MCP:
+ashoka supports the Model Context Protocol (MCP), which enables structured interactions between LLMs and external systems. With MCP:
 
 - LLMs can access external context and tools through standardized messages
 - The protocol provides a consistent way to pass context between the AI and canister systems
@@ -54,7 +54,7 @@ This enables AI governors to effectively analyze governance systems and generate
 
 ## Training and Testing
 
-Oshaka includes a comprehensive framework for training and testing AI governors:
+ashoka includes a comprehensive framework for training and testing AI governors:
 
 ### Enhanced Prompting System
 
@@ -69,7 +69,7 @@ Multiple prompt templates in the `prompts/` directory provide deep governance kn
 
 ```bash
 # Evaluate a single scenario
-oshaka evaluate [ollama_url] <scenario_file> [options]
+ashoka evaluate [ollama_url] <scenario_file> [options]
 
 # Options:
 # --output <file>         Save evaluation results as JSON
@@ -82,7 +82,7 @@ oshaka evaluate [ollama_url] <scenario_file> [options]
 
 ```bash
 # Run multiple scenarios to benchmark governor quality
-oshaka benchmark [ollama_url] <scenarios_dir> [--output <file>]
+ashoka benchmark [ollama_url] <scenarios_dir> [--output <file>]
 ```
 
 The benchmarking system evaluates proposals on multiple criteria:
@@ -94,7 +94,7 @@ The benchmarking system evaluates proposals on multiple criteria:
 ## Project Structure
 
 ```
-oshaka/
+ashoka/
 ├── main.py                # CLI entry point
 ├── ollama_client.py       # Interacts with the LLM via HTTP
 ├── realm_interface.py     # Uses ic-py to query GGG and submit proposals

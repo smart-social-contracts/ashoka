@@ -1,3 +1,6 @@
-pyyaml>=6.0
-requests>=2.25.0
-ic-py>=0.2.0
+openai
+langchain
+faiss-cpu
+ic-py
+requests
+pyyaml

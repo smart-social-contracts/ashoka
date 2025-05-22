@@ -9,7 +9,7 @@ from ic.identity import Identity
 from ic.agent import Agent
 from ic.candid import encode, decode
 
-logger = logging.getLogger("oshaka.realm")
+logger = logging.getLogger("ashoka.realm")
 
 class RealmInterface:
     """Interface for interacting with GGG-compliant realm canisters."""

@@ -1,4 +1,4 @@
-# Oshaka Configuration
+# ashoka Configuration
 
 # Default Ollama endpoint
 default_ollama_url: "http://localhost:11434"
@@ -13,5 +13,5 @@ default_realm_canister_id: ""
 ic_network_url: "https://ic0.app"
 
 # MCP settings
-governor_id: "oshaka-governor"
+governor_id: "ashoka-governor"
 default_proposal_price: 0

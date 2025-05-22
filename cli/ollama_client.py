@@ -7,7 +7,7 @@ import logging
 import requests
 from typing import Dict
 
-logger = logging.getLogger("oshaka.ollama")
+logger = logging.getLogger("ashoka.ollama")
 
 class OllamaClient:
     """Client for interacting with Ollama API."""
