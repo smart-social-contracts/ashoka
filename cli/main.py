@@ -115,6 +115,46 @@ def run_command(args, config):
     except Exception as e:
         logger.error(f"Failed to process or submit proposal: {str(e)}")
 
+def ask_command(args, config):
+    """Connect to a realm canister and ask a custom question."""
+    logger.info(f"Connecting to Ollama at {args.ollama_url}")
+    ollama_client = OllamaClient(args.ollama_url)
+    
+    logger.info(f"Connecting to realm canister: {args.realm_canister_id}")
+    realm = RealmInterface(args.realm_canister_id)
+    
+    # Get realm context
+    logger.info("Fetching realm summary")
+    realm_summary = realm.get_summary()
+    
+    if not realm_summary:
+        logger.error("Failed to retrieve realm summary")
+        return
+    
+    # Construct prompt with realm context and custom question
+    prompt = f"""
+    You are an AI Governor for a GGG-compliant realm.
+    
+    Here is the current state of the realm:
+    {realm_summary}
+    
+    Question: {args.question}
+    
+    Please provide a thorough answer based on the realm's context.
+    """
+    
+    logger.info("Sending realm context and question to AI governor")
+    response = ollama_client.send_prompt(prompt)
+    
+    try:
+        # Display the raw response for questions
+        print("\n=== AI Governor Response ===\n")
+        print(response)
+        print("\n===========================\n")
+        
+    except Exception as e:
+        logger.error(f"Failed to process response: {str(e)}")
+
 def evaluate_command(args, config):
     """Evaluate governor performance on test scenarios."""
     logger.info(f"Connecting to Ollama at {args.ollama_url}")
@@ -305,99 +345,56 @@ def benchmark_command(args, config):
 
 def main():
     """Main entry point for the ashoka CLI."""
-    config = load_config()
-    
-    parser = argparse.ArgumentParser(
-        description="ashoka - Off-chain AI governor for GGG-compliant realms"
-    )
-    subparsers = parser.add_subparsers(dest="command", help="Command to execute")
+    parser = argparse.ArgumentParser(description="ashoka - Off-chain AI governor for GGG-compliant realms")
+    subparsers = parser.add_subparsers(dest="command", help="Command to execute", required=True)
     
     # Create command
     create_parser = subparsers.add_parser("create", help="Initialize an AI governor")
-    create_parser.add_argument(
-        "ollama_url", 
-        nargs="?", 
-        default=config.get("default_ollama_url", "http://localhost:11434"),
-        help="URL of the Ollama API"
-    )
+    create_parser.add_argument("ollama_url", nargs="?", help="URL of Ollama API (default: from config)")
     
     # Run command
     run_parser = subparsers.add_parser("run", help="Run the AI governor on a realm")
-    run_parser.add_argument(
-        "ollama_url", 
-        nargs="?", 
-        default=config.get("default_ollama_url", "http://localhost:11434"),
-        help="URL of the Ollama API"
-    )
-    run_parser.add_argument(
-        "realm_canister_id",
-        nargs="?",
-        default=config.get("default_realm_canister_id", ""),
-        help="Canister ID of the GGG-compliant realm"
-    )
-    run_parser.add_argument(
-        "--mcp-only",
-        action="store_true",
-        help="Only generate MCP message, don't submit via GGG interface"
-    )
+    run_parser.add_argument("ollama_url", nargs="?", help="URL of Ollama API (default: from config)")
+    run_parser.add_argument("realm_canister_id", help="Canister ID of the realm")
+    run_parser.add_argument("--mcp-only", action="store_true", help="Only generate MCP message, don't submit proposal")
+    
+    # Ask command
+    ask_parser = subparsers.add_parser("ask", help="Ask the AI governor a custom question about a realm")
+    ask_parser.add_argument("ollama_url", nargs="?", help="URL of Ollama API (default: from config)")
+    ask_parser.add_argument("realm_canister_id", help="Canister ID of the realm")
+    ask_parser.add_argument("question", help="Your question about the realm")
     
     # Evaluate command
-    eval_parser = subparsers.add_parser("evaluate", help="Evaluate AI governor on test scenarios")
-    eval_parser.add_argument(
-        "ollama_url", 
-        nargs="?", 
-        default=config.get("default_ollama_url", "http://localhost:11434"),
-        help="URL of the Ollama API"
-    )
-    eval_parser.add_argument(
-        "scenario_file",
-        help="Path to the test scenario file"
-    )
-    eval_parser.add_argument(
-        "--output",
-        help="Path to save evaluation results as JSON"
-    )
-    eval_parser.add_argument(
-        "--use-llm-evaluator",
-        action="store_true",
-        help="Use LLM to evaluate proposals instead of heuristic evaluation"
-    )
-    eval_parser.add_argument(
-        "--mock",
-        action="store_true",
-        help="Use mock realm for testing"
-    )
-    eval_parser.add_argument(
-        "--submit-mock",
-        action="store_true",
-        help="Submit proposal to mock realm after evaluation"
-    )
+    evaluate_parser = subparsers.add_parser("evaluate", help="Evaluate AI governor on test scenarios")
+    evaluate_parser.add_argument("ollama_url", nargs="?", help="URL of Ollama API (default: from config)")
+    evaluate_parser.add_argument("scenario_file", help="Path to the test scenario file")
+    evaluate_parser.add_argument("--output", help="Path to save evaluation results as JSON")
+    evaluate_parser.add_argument("--use-llm-evaluator", action="store_true", help="Use LLM to evaluate proposals instead of heuristic evaluation")
+    evaluate_parser.add_argument("--mock", action="store_true", help="Use mock realm for testing")
+    evaluate_parser.add_argument("--submit-mock", action="store_true", help="Submit proposal to mock realm after evaluation")
     
     # Benchmark command
     benchmark_parser = subparsers.add_parser("benchmark", help="Run benchmark tests on multiple scenarios")
-    benchmark_parser.add_argument(
-        "ollama_url", 
-        nargs="?", 
-        default=config.get("default_ollama_url", "http://localhost:11434"),
-        help="URL of the Ollama API"
-    )
-    benchmark_parser.add_argument(
-        "scenarios_dir",
-        help="Directory containing test scenarios"
-    )
-    benchmark_parser.add_argument(
-        "--output",
-        help="Path to save benchmark results as JSON"
-    )
+    benchmark_parser.add_argument("ollama_url", nargs="?", help="URL of Ollama API (default: from config)")
+    benchmark_parser.add_argument("scenarios_dir", help="Directory containing test scenarios")
+    benchmark_parser.add_argument("--output", help="Path to save benchmark results as JSON")
     
     args = parser.parse_args()
     
+    # Load configuration
+    config = load_config()
+    
+    # Set default Ollama URL from config if not provided
+    if hasattr(args, 'ollama_url') and not args.ollama_url:
+        args.ollama_url = config.get('default_ollama_url', 'http://localhost:11434')
+    
+    # Execute the appropriate command
     if args.command == "create":
         create_command(args, config)
     elif args.command == "run":
-        if not args.realm_canister_id:
-            parser.error("realm_canister_id is required for the 'run' command")
         run_command(args, config)
+    elif args.command == "ask":
+        ask_command(args, config)
     elif args.command == "evaluate":
         evaluate_command(args, config)
     elif args.command == "benchmark":

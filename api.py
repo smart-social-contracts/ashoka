@@ -413,6 +413,72 @@ if __name__ == "__main__":
             "error": str(e)
         }), 500
 
+@app.route('/api/ask', methods=['POST'])
+def ask():
+    """Ask a custom question about a realm."""
+    data = request.json or {}
+    
+    # Required parameters
+    realm_canister_id = data.get('realm_canister_id')
+    question = data.get('question')
+    
+    if not realm_canister_id:
+        return jsonify({"success": False, "error": "realm_canister_id is required"}), 400
+    if not question:
+        return jsonify({"success": False, "error": "question is required"}), 400
+    
+    # Optional parameters
+    ollama_url = data.get('ollama_url', 'http://localhost:11434')
+    
+    logger.info(f"API: Asking question about realm {realm_canister_id}")
+    
+    # Build command
+    command = ['python', 'cli/main.py', 'ask', ollama_url, realm_canister_id, question]
+    
+    try:
+        result = subprocess.run(command, capture_output=True, text=True)
+        
+        # Parse the output to extract the AI Governor response if possible
+        ai_response = None
+        output_lines = result.stdout.split('\n')
+        start_idx = -1
+        end_idx = -1
+        
+        for i, line in enumerate(output_lines):
+            if "=== AI Governor Response ===" in line:
+                start_idx = i + 1
+            elif "===========================" in line and start_idx != -1:
+                end_idx = i
+                break
+        
+        if start_idx != -1 and end_idx != -1:
+            ai_response = "\n".join(output_lines[start_idx:end_idx]).strip()
+        
+        if result.returncode != 0:
+            logger.error(f"CLI command failed: {result.stderr}")
+            return jsonify({
+                "success": False,
+                "error": result.stderr,
+                "command_output": result.stdout
+            }), 500
+        
+        response = {
+            "success": True,
+            "command_output": result.stdout
+        }
+        
+        if ai_response:
+            response["ai_response"] = ai_response
+        
+        return jsonify(response)
+    
+    except Exception as e:
+        logger.error(f"Error running CLI command: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
 if __name__ == "__main__":
     # Add Flask to requirements if not already there
     try:

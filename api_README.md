@@ -109,6 +109,19 @@ POST /api/realm-query
 }
 ```
 
+### Ask Custom Question About a Realm
+```
+POST /api/ask
+```
+**Request Body:**
+```json
+{
+  "realm_canister_id": "rrkah-fqaaa-aaaaa-aaaaq-cai",  // Required
+  "question": "What would be the impact of reducing the voting period to 3 days?",  // Required
+  "ollama_url": "http://localhost:11434"  // Optional
+}
+```
+
 ## Example Usage
 
 Using curl:
@@ -136,6 +149,11 @@ curl -X POST http://localhost:5000/api/evaluate \
 curl -X POST http://localhost:5000/api/direct-prompt \
   -H "Content-Type: application/json" \
   -d '{"prompt": "You are an AI Governor. Please suggest improvements for a treasury allocation system in a decentralized realm."}'
+
+# Ask a custom question about a realm
+curl -X POST http://localhost:5000/api/ask \
+  -H "Content-Type: application/json" \
+  -d '{"realm_canister_id": "rrkah-fqaaa-aaaaa-aaaaq-cai", "question": "What would be the impact of reducing the voting period to 3 days?"}'
 ```
 
 ## Notes
