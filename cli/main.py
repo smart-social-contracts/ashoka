@@ -354,7 +354,7 @@ def main():
     
     # Run command
     run_parser = subparsers.add_parser("run", help="Run the AI governor on a realm")
-    run_parser.add_argument("--ollama-url", dest="ollama_url", default=None, 
+    run_parser.add_argument("--ollama-url", dest="ollama_url", default="http://localhost:11434", 
                            help="URL of Ollama API (default: from config)")
     run_parser.add_argument("--realm-id", dest="realm_canister_id", default="default", 
                            help="Canister ID of the realm. Use 'default' to use DEFAULT_REALM_ID environment variable.")
@@ -362,7 +362,7 @@ def main():
     
     # Ask command
     ask_parser = subparsers.add_parser("ask", help="Ask the AI governor a custom question about a realm")
-    ask_parser.add_argument("--ollama-url", dest="ollama_url", default=None, 
+    ask_parser.add_argument("--ollama-url", dest="ollama_url", default="http://localhost:11434", 
                            help="URL of Ollama API (default: from config)")
     ask_parser.add_argument("--realm-id", dest="realm_canister_id", default="default", 
                            help="Canister ID of the realm. Use 'default' to use DEFAULT_REALM_ID environment variable.")
@@ -370,7 +370,7 @@ def main():
     
     # Evaluate command
     evaluate_parser = subparsers.add_parser("evaluate", help="Evaluate an AI governor's proposal quality")
-    evaluate_parser.add_argument("ollama_url", nargs="?", help="URL of Ollama API (default: from config)")
+    evaluate_parser.add_argument("ollama_url", nargs="?", default="http://localhost:11434", help="URL of Ollama API (default: from config)")
     evaluate_parser.add_argument("scenario_file", help="Path to the test scenario file")
     evaluate_parser.add_argument("--output", help="Path to save evaluation results as JSON")
     evaluate_parser.add_argument("--use-llm-evaluator", action="store_true", help="Use LLM to evaluate proposals instead of heuristic evaluation")
@@ -379,7 +379,7 @@ def main():
     
     # Benchmark command
     benchmark_parser = subparsers.add_parser("benchmark", help="Run benchmark tests on multiple scenarios")
-    benchmark_parser.add_argument("ollama_url", nargs="?", help="URL of Ollama API (default: from config)")
+    benchmark_parser.add_argument("ollama_url", nargs="?", default="http://localhost:11434", help="URL of Ollama API (default: from config)")
     benchmark_parser.add_argument("scenarios_dir", help="Directory containing test scenarios")
     benchmark_parser.add_argument("--output", help="Path to save benchmark results as JSON")
     
