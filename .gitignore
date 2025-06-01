@@ -57,3 +57,6 @@ docker-compose.override.yml
 *.tmp
 *.bak
 temp/
+
+# Ollama data (workspace)
+ollama_data
