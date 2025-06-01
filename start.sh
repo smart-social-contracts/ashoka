@@ -34,6 +34,11 @@ else
   echo "Warning: Main CLI script not found at expected location"
 fi
 
+echo "Deleting and cloning ashoka repository..."
+rm -rf ashoka
+git clone https://github.com/smart-social-contracts/ashoka.git
+echo "Ashoka repository cloned"
+
 # Keep container running
 echo "Container is ready. Use 'docker exec' to run commands or attach to this container."
 tail -f /dev/null

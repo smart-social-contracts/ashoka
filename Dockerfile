@@ -27,8 +27,6 @@ RUN pip3 install --upgrade pip
 RUN pip3 install -r requirements.txt
 
 # --- Copy ashoka code ---
-COPY cli/ /app/cli/
-COPY tests/ /app/tests/
 COPY start.sh /app/start.sh
 RUN chmod +x /app/start.sh
 
