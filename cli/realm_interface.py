@@ -3,31 +3,28 @@ Realm Interface Module - Handles interactions with GGG-compliant realm canisters
 """
 
 import logging
+import json
+import subprocess
 from typing import Dict, Optional
 
-# Handle ic-py imports with proper error handling
-try:
-    import ic_py.client as ic_client
-    from ic_py.identity import Identity
-    from ic_py.agent import Agent
-    from ic_py.candid import encode, decode
-except ImportError:
-    # Fallback to legacy import structure if needed
-    try:
-        import ic.client as ic_client
-        from ic.identity import Identity
-        from ic.agent import Agent
-        from ic.candid import encode, decode
-    except ImportError:
-        logging.error("Failed to import IC package. Make sure ic-py is properly installed.")
-        # Define placeholder classes to avoid breaking the code
-        class Identity: pass
-        class Agent: pass
-        def encode(*args, **kwargs): pass
-        def decode(*args, **kwargs): pass
-        ic_client = None
-
 logger = logging.getLogger("ashoka.realm")
+
+def run_command(command):
+    """Run a shell command and return its output."""
+    logger.debug(f"Running: {command}")
+    process = subprocess.run(command, shell=True, capture_output=True, text=True)
+    if process.returncode != 0:
+        logger.error(f"Error executing command: {command}")
+        logger.error(f"Error: {process.stderr}")
+        return None
+    return process.stdout.strip()
+
+def get_current_principal():
+    """Get the principal ID of the current identity."""
+    principal = run_command("dfx identity get-principal")
+    if not principal:
+        raise Exception("Failed to get principal")
+    return principal
 
 class RealmInterface:
     """Interface for interacting with GGG-compliant realm canisters."""
@@ -37,14 +34,12 @@ class RealmInterface:
         self.canister_id = canister_id
         self.network_url = network_url
         
-        # Initialize IC agent
-        # Skip initialization if IC package is not properly imported
-        if 'Identity' in globals() and not isinstance(Identity, type(type)):
-            identity = Identity()
-            self.agent = Agent(identity, network_url)
+        # Configure network in dfx if not using mainnet
+        if network_url != "https://ic0.app":
+            self.network_param = f"--network {network_url}"
         else:
-            logger.warning("IC package not properly imported, realm interface will be limited")
-            self.agent = None
+            self.network_param = ""
+        
         logger.info(f"RealmInterface initialized for canister: {canister_id}")
     
     def get_summary(self) -> Optional[str]:
@@ -52,22 +47,24 @@ class RealmInterface:
         try:
             logger.info(f"Querying ggg_get_summary from canister {self.canister_id}")
             
-            # Check if agent is available
-            if self.agent is None:
-                logger.warning("Agent not initialized, returning mock summary")
+            # Call the ggg_get_summary method on the canister using dfx with JSON output
+            command = f'dfx canister {self.network_param} call {self.canister_id} ggg_get_summary --query --output=json'
+            result = run_command(command)
+            
+            if not result:
+                logger.warning("Failed to get realm summary, returning mock summary")
                 return "Mock realm summary: This is a simulated realm for testing purposes."
             
-            # Call the ggg_get_summary method on the canister
-            result = self.agent.query_raw(
-                self.canister_id,
-                "ggg_get_summary",
-                encode([])  # No arguments
-            )
-            
-            # Decode the result
-            decoded = decode(result, [str])[0]
-            logger.debug(f"Received summary: {decoded[:100]}...")
-            return decoded
+            # Parse the JSON result
+            try:
+                parsed_result = json.loads(result)
+                # JSON output for a string is typically just the string itself
+                summary = parsed_result[0] if isinstance(parsed_result, list) and len(parsed_result) > 0 else parsed_result
+                logger.debug(f"Received summary: {str(summary)[:100]}...")
+                return str(summary)
+            except json.JSONDecodeError as e:
+                logger.error(f"Failed to parse JSON response: {e}")
+                return "Error parsing realm summary. Falling back to evaluation mode."
             
         except Exception as e:
             logger.error(f"Error getting realm summary: {str(e)}")
@@ -78,22 +75,31 @@ class RealmInterface:
         try:
             logger.info(f"Submitting proposal to canister {self.canister_id}")
             
-            # Check if agent is available
-            if self.agent is None:
-                logger.warning("Agent not initialized, returning mock submission result")
+            title = proposal["title"]
+            content = proposal["content"]
+            
+            # Escape quotes in the title and content to avoid shell issues
+            title = title.replace('"', '\\"')
+            content = content.replace('"', '\\"')
+            
+            # Call the submit_proposal method on the canister using dfx with JSON output
+            command = f'dfx canister {self.network_param} call {self.canister_id} submit_proposal "(\\""{title}\\", \\""{content}\\")" --output=json'
+            result = run_command(command)
+            
+            if not result:
+                logger.warning("Failed to submit proposal, returning mock result")
                 return f"Mock submission successful: {proposal['title']} (Evaluation Mode)"
             
-            # Call the submit_proposal method on the canister
-            result = self.agent.update_raw(
-                self.canister_id,
-                "submit_proposal",
-                encode([proposal["title"], proposal["content"]])
-            )
-            
-            # Decode the result
-            decoded = decode(result, [str])[0]
-            logger.info(f"Proposal submission result: {decoded}")
-            return decoded
+            # Parse the JSON result
+            try:
+                parsed_result = json.loads(result)
+                # JSON output for a string is typically just the string itself
+                response = parsed_result[0] if isinstance(parsed_result, list) and len(parsed_result) > 0 else parsed_result
+                logger.info(f"Proposal submission result: {str(response)}")
+                return str(response)
+            except json.JSONDecodeError as e:
+                logger.error(f"Failed to parse JSON response: {e}")
+                return f"Error parsing submission result, but evaluation can continue: {str(e)}"
             
         except Exception as e:
             logger.error(f"Error submitting proposal: {str(e)}")

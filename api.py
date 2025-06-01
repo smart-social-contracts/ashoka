@@ -318,7 +318,7 @@ def direct_prompt():
 
 @app.route('/api/realm-query', methods=['POST'])
 def realm_query():
-    """Query a realm canister directly using ic-py."""
+    """Query a realm canister directly using dfx command line."""
     data = request.json or {}
     
     # Required parameters
@@ -331,59 +331,42 @@ def realm_query():
         method = "get_summary"  # Default method
     
     args = data.get('args', [])
+    network = data.get('network', 'ic')
     
     logger.info(f"API: Querying realm canister {canister_id} with method {method}")
     
-    # We'll use a simple script to call ic-py directly
-    temp_script = """
-import sys
-from ic.client import Client
-from ic.identity import Identity
-from ic.agent import Agent
-from ic.candid import encode, decode
-
-def main():
-    try:
-        canister_id = sys.argv[1]
-        method = sys.argv[2]
-        args_str = sys.argv[3] if len(sys.argv) > 3 else "[]"
-        
-        import json
-        args = json.loads(args_str)
-        
-        # Create an identity and agent
-        identity = Identity()
-        client = Client()
-        agent = Agent(identity, client)
-        
-        # Call the canister
-        response = agent.query_raw(canister_id, method, encode(args))
-        result = decode(response)
-        
-        print(json.dumps(result))
-        return 0
-    except Exception as e:
-        print(f"Error: {str(e)}", file=sys.stderr)
-        return 1
-
-if __name__ == "__main__":
-    sys.exit(main())
-    """
-    
-    temp_script_path = "temp_ic_query.py"
-    with open(temp_script_path, "w") as f:
-        f.write(temp_script)
+    # Determine network parameter for dfx
+    if network == 'ic' or network == 'https://ic0.app':
+        network_param = ""
+    else:
+        network_param = f"--network {network}"
     
     try:
-        args_json = json.dumps(args)
-        result = subprocess.run(
-            ['python', temp_script_path, canister_id, method, args_json],
-            capture_output=True, 
-            text=True
-        )
+        # Convert args to a Candid-compatible argument string
+        args_str = ''
+        if args:
+            # Simple handling for basic arguments
+            # This is a simplified implementation - for complex types, 
+            # you may need more sophisticated Candid encoding
+            args_parts = []
+            for arg in args:
+                if isinstance(arg, str):
+                    args_parts.append(f'\\"{arg}\\"')
+                elif isinstance(arg, (int, float, bool)):
+                    args_parts.append(str(arg).lower())
+                else:
+                    args_parts.append(str(arg))
+            
+            args_str = f'({", ".join(args_parts)})'
         
-        # Clean up temp script
-        os.remove(temp_script_path)
+        # Build and execute the dfx command with JSON output
+        if args_str:
+            command = f'dfx canister {network_param} call {canister_id} {method} "{args_str}" --query --output=json'
+        else:
+            command = f'dfx canister {network_param} call {canister_id} {method} --query --output=json'
+        
+        logger.debug(f"Executing command: {command}")
+        result = subprocess.run(command, shell=True, capture_output=True, text=True)
         
         if result.returncode != 0:
             logger.error(f"Canister query failed: {result.stderr}")
@@ -392,26 +375,23 @@ if __name__ == "__main__":
                 "error": result.stderr
             }), 500
         
-        # Parse the response
+        # Parse the JSON response directly
         try:
-            query_result = json.loads(result.stdout)
+            parsed_result = json.loads(result.stdout)
             return jsonify({
                 "success": True,
-                "result": query_result
+                "result": parsed_result
             })
-        except json.JSONDecodeError:
-            logger.error(f"Failed to parse query result as JSON: {result.stdout}")
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse JSON response: {str(e)}")
             return jsonify({
                 "success": False,
-                "error": "Failed to parse query result",
+                "error": f"Failed to parse response as JSON: {str(e)}",
                 "raw_result": result.stdout
             }), 500
     
     except Exception as e:
         logger.error(f"Error querying canister: {str(e)}")
-        # Clean up temp script if it exists
-        if os.path.exists(temp_script_path):
-            os.remove(temp_script_path)
         return jsonify({
             "success": False,
             "error": str(e)
