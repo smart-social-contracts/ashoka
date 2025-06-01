@@ -34,4 +34,6 @@ RUN chmod +x /app/start.sh
 
 
 WORKDIR /app
+EXPOSE 11434
+
 CMD ["/app/start.sh"]

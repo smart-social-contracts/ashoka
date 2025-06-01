@@ -1,5 +1,10 @@
 #!/bin/bash
 
+# Export OLLAMA_HOME explicitly
+export OLLAMA_HOME=/workspace/ollama
+echo "OLLAMA_HOME=$OLLAMA_HOME"
+chmod -R 777 $OLLAMA_HOME
+
 # Start Ollama in the background
 ollama serve &
 
@@ -13,7 +18,9 @@ echo "Ollama is up and running at http://localhost:11434"
 
 # Pull the llama3 model
 echo "Pulling llama3 model..."
-ollama pull llama3
+ollama pull deepseek-r1:8b
+ollama pull llama3:8b
+#ollama pull deepseek-r1:70b
 
 # Make the main CLI script executable if needed
 if [ -f /app/cli/main.py ]; then

@@ -45,7 +45,7 @@ def create_command(args, config):
     with open(prompts_dir / "governor_init.txt", "r") as f:
         governor_prompt = f.read()
     
-    logger.info("Initializing AI governor with GGG knowledge")
+    logger.info("Initializing AI governor with GGG knowledge. This might take some time...")
     response = ollama_client.send_prompt(governor_prompt)
     
     logger.info(f"Governor initialized with response: {response[:100]}...")
