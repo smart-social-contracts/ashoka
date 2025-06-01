@@ -13,6 +13,10 @@ RUN curl -fsSL https://ollama.com/install.sh | sh
 # --- Add ollama to path ---
 ENV PATH="/root/.ollama/bin:${PATH}"
 
+# --- Set persistent home for Ollama ---
+RUN mkdir -p /workspace/ollama
+ENV OLLAMA_HOME=/workspace/ollama
+
 # We'll pull the model at runtime instead
 # Models will be downloaded when container starts
 
@@ -27,6 +31,7 @@ COPY cli/ /app/cli/
 COPY tests/ /app/tests/
 COPY start.sh /app/start.sh
 RUN chmod +x /app/start.sh
+
 
 WORKDIR /app
 CMD ["/app/start.sh"]
