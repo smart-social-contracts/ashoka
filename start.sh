@@ -1,8 +1,12 @@
 #!/bin/bash
 
 # Export OLLAMA_HOME explicitly
+export OLLAMA_HOST=0.0.0.0
 export OLLAMA_HOME=/workspace/ollama
+export OLLAMA_MODELS=/workspace/ollama/models
+echo "OLLAMA_HOST=$OLLAMA_HOST"
 echo "OLLAMA_HOME=$OLLAMA_HOME"
+echo "OLLAMA_MODELS=$OLLAMA_MODELS"
 chmod -R 777 $OLLAMA_HOME
 
 # Start Ollama in the background

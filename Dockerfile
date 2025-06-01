@@ -4,7 +4,7 @@ FROM nvidia/cuda:12.1.0-base-ubuntu20.04
 ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install -y \
-    curl git python3 python3-pip unzip sudo nano wget netcat \
+    curl git python3 python3-pip unzip sudo nano wget netcat net-tools \
     && apt-get clean
 
 # --- Ollama installation ---
