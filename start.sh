@@ -26,14 +26,6 @@ ollama pull deepseek-r1:8b
 ollama pull llama3:8b
 #ollama pull deepseek-r1:70b
 
-# Make the main CLI script executable if needed
-if [ -f /app/cli/main.py ]; then
-  chmod +x /app/cli/main.py
-  echo "You can now use the ashoka CLI with: python3 /app/cli/main.py [command]"
-else
-  echo "Warning: Main CLI script not found at expected location"
-fi
-
 echo "Deleting and cloning ashoka repository..."
 rm -rf ashoka
 git clone https://github.com/smart-social-contracts/ashoka.git
