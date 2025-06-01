@@ -3,12 +3,7 @@
 name: Build and Push to Docker Hub
 
 on:
-  workflow_run:
-    workflows: ["Build and Push ashoka Docker Image"]
-    types:
-      - completed
-    branches:
-      - main
+  workflow_dispatch:
 
 jobs:
   build-and-push:
