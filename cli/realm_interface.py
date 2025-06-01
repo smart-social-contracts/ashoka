@@ -48,7 +48,7 @@ class RealmInterface:
             logger.info(f"Querying ggg_get_summary from canister {self.canister_id}")
             
             # Call the ggg_get_summary method on the canister using dfx with JSON output
-            command = f'dfx canister {self.network_param} call {self.canister_id} ggg_get_summary --query --output=json'
+            command = f'dfx canister {self.network_param} call {self.canister_id} get_realm_data --query --output=json'
             result = run_command(command)
             
             if not result:
