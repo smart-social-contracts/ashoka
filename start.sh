@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Set default realm ID
+export DEFAULT_REALM_ID="h5vpp-qyaaa-aaaac-qai3a-cai"
+
 # Export OLLAMA_HOME explicitly
 export OLLAMA_HOST=0.0.0.0
 export OLLAMA_HOME=/workspace/ollama
@@ -30,6 +33,9 @@ echo "Deleting and cloning ashoka repository..."
 rm -rf ashoka
 git clone https://github.com/smart-social-contracts/ashoka.git
 echo "Ashoka repository cloned"
+
+# Run API server
+python3 api.py &
 
 # Keep container running
 echo "Container is ready. Use 'docker exec' to run commands or attach to this container."

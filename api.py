@@ -35,7 +35,7 @@ def create():
     
     try:
         result = subprocess.run([
-            'python', 'cli/main.py', 'create', ollama_url
+            'python', 'cli/main.py', 'create', '--ollama-url', ollama_url
         ], capture_output=True, text=True)
         
         if result.returncode != 0:
@@ -66,7 +66,11 @@ def run():
     # Required parameters
     realm_canister_id = data.get('realm_canister_id')
     if not realm_canister_id:
-        return jsonify({"success": False, "error": "realm_canister_id is required"}), 400
+        # Try to get realm ID from environment variable
+        realm_canister_id = os.environ.get('DEFAULT_REALM_ID')
+        if not realm_canister_id:
+            return jsonify({"success": False, "error": "realm_canister_id is required and DEFAULT_REALM_ID environment variable is not set"}), 400
+        logger.info(f"Using realm canister ID from environment: {realm_canister_id}")
     
     # Optional parameters
     ollama_url = data.get('ollama_url', 'http://localhost:11434')
@@ -74,8 +78,8 @@ def run():
     
     logger.info(f"API: Running AI governor for realm {realm_canister_id}")
     
-    # Build command
-    command = ['python', 'cli/main.py', 'run', ollama_url, realm_canister_id]
+    # Build command with named arguments
+    command = ['python', 'cli/main.py', 'run', '--realm-id', realm_canister_id, '--ollama-url', ollama_url]
     if mcp_only:
         command.append('--mcp-only')
     
@@ -147,7 +151,7 @@ def evaluate():
     logger.info(f"API: Evaluating AI governor with scenario {scenario_file}")
     
     # Build command
-    command = ['python', 'cli/main.py', 'evaluate', ollama_url, scenario_file]
+    command = ['python', 'cli/main.py', 'evaluate', '--ollama-url', ollama_url, scenario_file]
     
     if use_llm_evaluator:
         command.append('--use-llm-evaluator')
@@ -212,7 +216,7 @@ def benchmark():
     logger.info(f"API: Running benchmark on scenarios in {scenarios_dir}")
     
     # Build command
-    command = ['python', 'cli/main.py', 'benchmark', ollama_url, scenarios_dir]
+    command = ['python', 'cli/main.py', 'benchmark', '--ollama-url', ollama_url, scenarios_dir]
     
     if output_file:
         command.extend(['--output', output_file])
@@ -420,10 +424,14 @@ def ask():
     
     # Required parameters
     realm_canister_id = data.get('realm_canister_id')
-    question = data.get('question')
-    
     if not realm_canister_id:
-        return jsonify({"success": False, "error": "realm_canister_id is required"}), 400
+        # Try to get realm ID from environment variable
+        realm_canister_id = os.environ.get('DEFAULT_REALM_ID')
+        if not realm_canister_id:
+            return jsonify({"success": False, "error": "realm_canister_id is required and DEFAULT_REALM_ID environment variable is not set"}), 400
+        logger.info(f"Using realm canister ID from environment: {realm_canister_id}")
+    
+    question = data.get('question')
     if not question:
         return jsonify({"success": False, "error": "question is required"}), 400
     
@@ -432,8 +440,8 @@ def ask():
     
     logger.info(f"API: Asking question about realm {realm_canister_id}")
     
-    # Build command
-    command = ['python', 'cli/main.py', 'ask', ollama_url, realm_canister_id, question]
+    # Build command with named arguments
+    command = ['python', 'cli/main.py', 'ask', '--realm-id', realm_canister_id, '--ollama-url', ollama_url, question]
     
     try:
         result = subprocess.run(command, capture_output=True, text=True)
