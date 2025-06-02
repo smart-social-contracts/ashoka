@@ -4,6 +4,7 @@ Ashoka HTTP API Wrapper - Exposes Ashoka functionality via HTTP endpoints
 """
 
 from flask import Flask, request, jsonify
+from flask_cors import CORS
 import subprocess
 import json
 import logging
@@ -19,6 +20,7 @@ logger = logging.getLogger("ashoka-api")
 os.chdir(Path(__file__).parent)
 
 app = Flask(__name__)
+CORS(app, resources={r"/api/*": {"origins": "*"}})  # For development - restrict origins in production
 
 @app.route('/health', methods=['GET'])
 def health_check():
@@ -328,7 +330,7 @@ def realm_query():
     
     method = data.get('method')
     if not method:
-        method = "get_summary"  # Default method
+        method = "get_realm_data"  # Default method
     
     args = data.get('args', [])
     network = data.get('network', 'ic')

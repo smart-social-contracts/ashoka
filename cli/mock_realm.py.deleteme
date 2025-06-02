@@ -27,7 +27,7 @@ class MockRealm:
         self.proposals = []
         logger.info(f"MockRealm initialized: {self.config['name']}")
     
-    def get_summary(self) -> str:
+    def get_realm_data(self) -> str:
         """
         Get a summary of the realm via the GGG interface.
         

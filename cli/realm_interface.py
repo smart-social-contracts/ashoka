@@ -42,13 +42,13 @@ class RealmInterface:
         
         logger.info(f"RealmInterface initialized for canister: {canister_id}")
     
-    def get_summary(self) -> Optional[str]:
+    def get_realm_data(self) -> Optional[str]:
         """Get a summary of the realm via the GGG interface."""
         try:
-            logger.info(f"Querying ggg_get_summary from canister {self.canister_id}")
+            logger.info(f"Querying get_realm_data from canister {self.canister_id}")
             
-            # Call the ggg_get_summary method on the canister using dfx with JSON output
-            command = f'dfx canister {self.network_param} call {self.canister_id} get_realm_data --query --output=json'
+            # Call the get_realm_data method on the canister using dfx with JSON output
+            command = f'dfx canister {self.network_param} call {self.canister_id} extension_sync_call \'(record {{ extension_name = "llm_chat"; function_name = "get_realm_data"; args = "none"; }})\' --output=json'
             result = run_command(command)
             
             if not result:

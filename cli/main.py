@@ -16,7 +16,7 @@ from ollama_client import OllamaClient
 from realm_interface import RealmInterface
 from messages import ProposalOfferMessage
 from evaluator import evaluate_proposal, evaluate_proposal_with_llm
-from mock_realm import MockRealm
+# from mock_realm import MockRealm
 import yaml
 
 # Set up logging
@@ -61,7 +61,7 @@ def run_command(args, config):
     
     # Get realm context
     logger.info("Fetching realm summary")
-    realm_summary = realm.get_summary()
+    realm_summary = realm.get_realm_data()
     
     if not realm_summary:
         logger.error("Failed to retrieve realm summary")
@@ -125,7 +125,7 @@ def ask_command(args, config):
     
     # Get realm context
     logger.info("Fetching realm summary")
-    realm_summary = realm.get_summary()
+    realm_summary = realm.get_realm_data()
     
     if not realm_summary:
         logger.error("Failed to retrieve realm summary")
@@ -165,12 +165,12 @@ def evaluate_command(args, config):
     with open(args.scenario_file, "r") as f:
         scenario = f.read()
     
-    # Create a mock realm if needed
-    mock_realm = None
-    if args.mock:
-        mock_realm = MockRealm()
-        mock_summary = mock_realm.get_summary()
-        scenario = f"{scenario}\n\nCurrent Realm State:\n{mock_summary}"
+    # # Create a mock realm if needed
+    # mock_realm = None
+    # if args.mock:
+    #     mock_realm = MockRealm()
+    #     mock_summary = mock_realm.get_realm_data()
+    #     scenario = f"{scenario}\n\nCurrent Realm State:\n{mock_summary}"
     
     # Send scenario to LLM with JSON formatting instructions
     logger.info("Sending scenario to AI governor for evaluation")
@@ -236,10 +236,10 @@ def evaluate_command(args, config):
                 json.dump(output_data, f, indent=2)
             logger.info(f"Evaluation results saved to {args.output}")
         
-        # Submit to mock realm if requested
-        if mock_realm and args.submit_mock:
-            result = mock_realm.submit_proposal(proposal)
-            print(f"\nMock Submission Result: {result}")
+        # # Submit to mock realm if requested
+        # if mock_realm and args.submit_mock:
+        #     result = mock_realm.submit_proposal(proposal)
+        #     print(f"\nMock Submission Result: {result}")
     
     except Exception as e:
         logger.error(f"Failed to process or evaluate proposal: {str(e)}")
@@ -270,9 +270,9 @@ def benchmark_command(args, config):
         with open(scenario_file, "r") as f:
             scenario = f.read()
         
-        # Create a mock realm
-        mock_realm = MockRealm()
-        mock_summary = mock_realm.get_summary()
+        # # Create a mock realm
+        # mock_realm = MockRealm()
+        # mock_summary = mock_realm.get_realm_data()
         full_scenario = f"{scenario}\n\nCurrent Realm State:\n{mock_summary}"
         
         # Send to LLM

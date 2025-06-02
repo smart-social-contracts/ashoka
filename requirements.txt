@@ -4,3 +4,4 @@ ic-py
 requests
 pyyaml
 flask
+flask-cors

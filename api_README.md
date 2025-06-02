@@ -104,7 +104,7 @@ POST /api/realm-query
 ```json
 {
   "canister_id": "rrkah-fqaaa-aaaaa-aaaaq-cai",  // Required
-  "method": "get_summary",  // Optional, defaults to get_summary
+  "method": "get_realm_data",  // Optional, defaults to get_realm_data
   "args": []  // Optional, defaults to empty array
 }
 ```

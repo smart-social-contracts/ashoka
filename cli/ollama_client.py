@@ -6,13 +6,14 @@ import json
 import logging
 import requests
 from typing import Dict
+from constants import DEFAULT_MODEL
 
 logger = logging.getLogger("ashoka.ollama")
 
 class OllamaClient:
     """Client for interacting with Ollama API."""
     
-    def __init__(self, api_url: str, model: str = "llama3.2:1b"):
+    def __init__(self, api_url: str, model: str = DEFAULT_MODEL):
         """Initialize the Ollama client."""
         self.api_url = api_url.rstrip("/")
         self.model = model
