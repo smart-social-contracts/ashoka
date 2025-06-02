@@ -19,21 +19,13 @@ ENV PATH="/root/.ollama/bin:${PATH}"
 RUN mkdir -p /workspace/ollama
 ENV OLLAMA_HOME=/workspace/ollama
 
-# We'll pull the model at runtime instead
-# Models will be downloaded when container starts
+# --- Clone Ashoka repository ---
+RUN git clone https://github.com/smart-social-contracts/ashoka.git
 
 # --- Python environment ---
-WORKDIR /app
-COPY requirements.txt .
-RUN pip3 install --upgrade pip
-RUN pip3 install -r requirements.txt
+WORKDIR /app/ashoka
 
-# --- Copy ashoka code ---
-COPY start.sh /app/start.sh
-RUN chmod +x /app/start.sh
-
-
-WORKDIR /app
 EXPOSE 11434
+EXPOSE 5000
 
-CMD ["/app/start.sh"]
+CMD ["./start.sh"]

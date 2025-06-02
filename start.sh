@@ -28,16 +28,14 @@ done
 
 echo "Ollama is up and running at http://localhost:11434"
 
-# Pull the llama3 model
-echo "Pulling llama3 model..."
+# Pull the models
+echo "Pulling models..."
 ollama pull deepseek-r1:8b
 ollama pull llama3:8b
-#ollama pull deepseek-r1:70b
+ollama pull llama3.2:70b
 
-echo "Deleting and cloning ashoka repository..."
-rm -rf ashoka
-git clone https://github.com/smart-social-contracts/ashoka.git
-echo "Ashoka repository cloned"
+pip3 install --upgrade pip
+pip3 install -r requirements.txt
 
 # Run API server
 python3 api.py &
