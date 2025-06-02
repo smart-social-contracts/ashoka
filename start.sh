@@ -3,8 +3,10 @@
 # Set default realm ID
 export ASHOKA_REALM_ID="h5vpp-qyaaa-aaaac-qai3a-cai"
 export ASHOKA_MODEL="llama3.2:70b"
+export ASHOKA_USE_LLM=true
 echo "ASHOKA_REALM_ID=$ASHOKA_REALM_ID"
 echo "ASHOKA_MODEL=$ASHOKA_MODEL"
+echo "ASHOKA_USE_LLM=$ASHOKA_USE_LLM"
 
 # Export OLLAMA_HOME explicitly
 export OLLAMA_HOST=0.0.0.0

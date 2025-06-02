@@ -401,67 +401,92 @@ def realm_query():
 
 @app.route('/api/ask', methods=['POST'])
 def ask():
-    """Ask a custom question about a realm."""
-    data = request.json or {}
-    
-    # Required parameters
-    realm_canister_id = data.get('realm_canister_id')
-    if not realm_canister_id:
-        # Try to get realm ID from environment variable
-        realm_canister_id = os.environ.get('ASHOKA_REALM_ID')
-        if not realm_canister_id:
-            return jsonify({"success": False, "error": "realm_canister_id is required and ASHOKA_REALM_ID environment variable is not set"}), 400
-        logger.info(f"Using realm canister ID from environment: {realm_canister_id}")
-    
-    question = data.get('question')
-    if not question:
-        return jsonify({"success": False, "error": "question is required"}), 400
-    
-    # Optional parameters
-    ollama_url = data.get('ollama_url', 'http://localhost:11434')
-    
-    logger.info(f"API: Asking question about realm {realm_canister_id}")
-    
-    # Build command with named arguments
-    command = ['python', 'cli/main.py', 'ask', '--realm-id', realm_canister_id, '--ollama-url', ollama_url, question]
-    
+
     try:
-        result = subprocess.run(command, capture_output=True, text=True)
+        """Ask a custom question about a realm."""
+        data = request.json or {}
         
-        # Parse the output to extract the AI Governor response if possible
-        ai_response = None
-        output_lines = result.stdout.split('\n')
-        start_idx = -1
-        end_idx = -1
+        # Required parameters
+        realm_canister_id = data.get('realm_canister_id')
+        if not realm_canister_id:
+            # Try to get realm ID from environment variable
+            realm_canister_id = os.environ.get('ASHOKA_REALM_ID')
+            if not realm_canister_id:
+                return jsonify({"success": False, "error": "realm_canister_id is required and ASHOKA_REALM_ID environment variable is not set"}), 400
+            logger.info(f"Using realm canister ID from environment: {realm_canister_id}")
         
-        for i, line in enumerate(output_lines):
-            if "=== AI Governor Response ===" in line:
-                start_idx = i + 1
-            elif "===========================" in line and start_idx != -1:
-                end_idx = i
-                break
+        question = data.get('question')
+        if not question:
+            return jsonify({"success": False, "error": "question is required"}), 400
         
-        if start_idx != -1 and end_idx != -1:
-            ai_response = "\n".join(output_lines[start_idx:end_idx]).strip()
+        # Optional parameters
+        ollama_url = data.get('ollama_url', 'http://localhost:11434')
         
-        if result.returncode != 0:
-            logger.error(f"CLI command failed: {result.stderr}")
-            return jsonify({
-                "success": False,
-                "error": result.stderr,
+        logger.info(f"API: Asking question about realm {realm_canister_id}")
+        
+        # Build command with named arguments
+        command = ['python', 'cli/main.py', 'ask', '--realm-id', realm_canister_id, '--ollama-url', ollama_url, question]
+        
+        if str(os.environ.get('ASHOKA_USE_LLM')).lower() == 'true':
+
+            result = subprocess.run(command, capture_output=True, text=True)
+            
+            # Parse the output to extract the AI Governor response if possible
+            ai_response = None
+            output_lines = result.stdout.split('\n')
+            start_idx = -1
+            end_idx = -1
+            
+            for i, line in enumerate(output_lines):
+                if "=== AI Governor Response ===" in line:
+                    start_idx = i + 1
+                elif "===========================" in line and start_idx != -1:
+                    end_idx = i
+                    break
+            
+            if start_idx != -1 and end_idx != -1:
+                ai_response = "\n".join(output_lines[start_idx:end_idx]).strip()
+            
+            if result.returncode != 0:
+                logger.error(f"CLI command failed: {result.stderr}")
+                return jsonify({
+                    "success": False,
+                    "error": result.stderr,
+                    "command_output": result.stdout
+                }), 500
+            
+            response = {
+                "success": True,
                 "command_output": result.stdout
-            }), 500
+            }
+        else:
+            response = {
+                "success": True,
+                "command_output": ""
+            }
+            ai_response = '''        
+# This is a header
+
+This is a paragraph.
+
+* This is a list
+* With two items
+  1. And a sublist
+  2. That is ordered
+    * With another
+    * Sublist inside
+
+| And this is | A table |
+|-------------|---------|
+| With two    | columns |`
+            '''
         
-        response = {
-            "success": True,
-            "command_output": result.stdout
-        }
-        
+
         if ai_response:
             response["ai_response"] = ai_response
         
         return jsonify(response)
-    
+        
     except Exception as e:
         logger.error(f"Error running CLI command: {str(e)}")
         return jsonify({
