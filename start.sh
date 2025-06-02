@@ -37,13 +37,13 @@ ollama pull llama3:8b
 pip3 install --upgrade pip
 pip3 install -r requirements.txt
 
-# Run API server
-python3 api.py &
+# # Run API server
+# python3 api.py &
 
-# Create AI governor
-python3 cli/main.py create
-#--ollama-url http://localhost:11434 --realm-id $ASHOKA_REALM_ID
+# # Create AI governor
+# python3 cli/main.py create
+# #--ollama-url http://localhost:11434 --realm-id $ASHOKA_REALM_ID
 
-# Keep container running
-echo "Container is ready. Use 'docker exec' to run commands or attach to this container."
-tail -f /dev/null
+# # Keep container running
+# echo "Container is ready. Use 'docker exec' to run commands or attach to this container."
+# tail -f /dev/null
