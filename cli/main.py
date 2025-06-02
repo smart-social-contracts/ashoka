@@ -20,8 +20,12 @@ from evaluator import evaluate_proposal, evaluate_proposal_with_llm
 import yaml
 
 # Set up logging
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger("ashoka")
+logger.setLevel(logging.DEBUG)
+
+# Set DEBUG level for other loggers too
+logging.getLogger().setLevel(logging.DEBUG)
 
 def load_config():
     """Load configuration from config.yaml."""

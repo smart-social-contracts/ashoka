@@ -10,6 +10,7 @@ from typing import Dict
 from constants import DEFAULT_MODEL
 
 logger = logging.getLogger("ashoka.ollama")
+logger.setLevel(logging.DEBUG)
 
 class OllamaClient:
     """Client for interacting with Ollama API."""
@@ -33,8 +34,14 @@ class OllamaClient:
             }
             
             logger.debug(f"Sending prompt to Ollama: {prompt[:100]}...")
+            logger.debug(f"API Request URL: {url}")
+            logger.debug(f"API Request Payload: {payload}")
             response = requests.post(url, json=payload)
             response.raise_for_status()
+            
+            logger.debug(f"API Response Status Code: {response.status_code}")
+            logger.debug(f"API Response Headers: {response.headers}")
+            logger.debug(f"API Response Content: {response.text[:1000]}...")
             
             result = response.json()
             return result.get("response", "")
