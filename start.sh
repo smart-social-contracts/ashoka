@@ -2,7 +2,7 @@
 
 # Set default realm ID
 export ASHOKA_REALM_ID="h5vpp-qyaaa-aaaac-qai3a-cai"
-export ASHOKA_MODEL="llama3.3:70b"
+export ASHOKA_MODEL="llama3:8b"
 export ASHOKA_USE_LLM=true
 echo "ASHOKA_REALM_ID=$ASHOKA_REALM_ID"
 echo "ASHOKA_MODEL=$ASHOKA_MODEL"
