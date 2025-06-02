@@ -69,9 +69,9 @@ def run():
     realm_canister_id = data.get('realm_canister_id')
     if not realm_canister_id:
         # Try to get realm ID from environment variable
-        realm_canister_id = os.environ.get('DEFAULT_REALM_ID')
+        realm_canister_id = os.environ.get('ASHOKA_REALM_ID')
         if not realm_canister_id:
-            return jsonify({"success": False, "error": "realm_canister_id is required and DEFAULT_REALM_ID environment variable is not set"}), 400
+            return jsonify({"success": False, "error": "realm_canister_id is required and ASHOKA_REALM_ID environment variable is not set"}), 400
         logger.info(f"Using realm canister ID from environment: {realm_canister_id}")
     
     # Optional parameters
@@ -408,9 +408,9 @@ def ask():
     realm_canister_id = data.get('realm_canister_id')
     if not realm_canister_id:
         # Try to get realm ID from environment variable
-        realm_canister_id = os.environ.get('DEFAULT_REALM_ID')
+        realm_canister_id = os.environ.get('ASHOKA_REALM_ID')
         if not realm_canister_id:
-            return jsonify({"success": False, "error": "realm_canister_id is required and DEFAULT_REALM_ID environment variable is not set"}), 400
+            return jsonify({"success": False, "error": "realm_canister_id is required and ASHOKA_REALM_ID environment variable is not set"}), 400
         logger.info(f"Using realm canister ID from environment: {realm_canister_id}")
     
     question = data.get('question')

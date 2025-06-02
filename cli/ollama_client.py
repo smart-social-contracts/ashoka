@@ -4,6 +4,7 @@ Ollama Client Module - Handles interactions with the Ollama API for LLM inferenc
 
 import json
 import logging
+import os
 import requests
 from typing import Dict
 from constants import DEFAULT_MODEL
@@ -13,11 +14,12 @@ logger = logging.getLogger("ashoka.ollama")
 class OllamaClient:
     """Client for interacting with Ollama API."""
     
-    def __init__(self, api_url: str, model: str = DEFAULT_MODEL):
+    def __init__(self, api_url: str, model: str = None):
         """Initialize the Ollama client."""
         self.api_url = api_url.rstrip("/")
-        self.model = model
-        logger.info(f"OllamaClient initialized with URL: {api_url} and model: {model}")
+        # Get model from environment variable first, then fall back to parameter or DEFAULT_MODEL
+        self.model = model or os.environ.get('ASHOKA_MODEL') or DEFAULT_MODEL
+        logger.info(f"OllamaClient initialized with URL: {api_url} and model: {self.model}")
     
     def send_prompt(self, prompt: str) -> str:
         """Send a prompt to the Ollama API and get the response."""

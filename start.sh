@@ -1,7 +1,10 @@
 #!/bin/bash
 
 # Set default realm ID
-export DEFAULT_REALM_ID="h5vpp-qyaaa-aaaac-qai3a-cai"
+export ASHOKA_REALM_ID="h5vpp-qyaaa-aaaac-qai3a-cai"
+export ASHOKA_MODEL="llama3.2:70b"
+echo "ASHOKA_REALM_ID=$ASHOKA_REALM_ID"
+echo "ASHOKA_MODEL=$ASHOKA_MODEL"
 
 # Export OLLAMA_HOME explicitly
 export OLLAMA_HOST=0.0.0.0
@@ -38,7 +41,7 @@ echo "Ashoka repository cloned"
 python3 api.py &
 
 # Create AI governor
-python3 cli/main.py create --ollama-url http://localhost:11434 --realm-id $DEFAULT_REALM_ID
+python3 cli/main.py create --ollama-url http://localhost:11434 --realm-id $ASHOKA_REALM_ID
 
 # Keep container running
 echo "Container is ready. Use 'docker exec' to run commands or attach to this container."

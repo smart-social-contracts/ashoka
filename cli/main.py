@@ -357,7 +357,7 @@ def main():
     run_parser.add_argument("--ollama-url", dest="ollama_url", default="http://localhost:11434", 
                            help="URL of Ollama API (default: from config)")
     run_parser.add_argument("--realm-id", dest="realm_canister_id", default="default", 
-                           help="Canister ID of the realm. Use 'default' to use DEFAULT_REALM_ID environment variable.")
+                           help="Canister ID of the realm. Use 'default' to use ASHOKA_REALM_ID environment variable.")
     run_parser.add_argument("--mcp-only", action="store_true", help="Only generate MCP message, don't submit proposal")
     
     # Ask command
@@ -365,7 +365,7 @@ def main():
     ask_parser.add_argument("--ollama-url", dest="ollama_url", default="http://localhost:11434", 
                            help="URL of Ollama API (default: from config)")
     ask_parser.add_argument("--realm-id", dest="realm_canister_id", default="default", 
-                           help="Canister ID of the realm. Use 'default' to use DEFAULT_REALM_ID environment variable.")
+                           help="Canister ID of the realm. Use 'default' to use ASHOKA_REALM_ID environment variable.")
     ask_parser.add_argument("question", help="Your question about the realm")
     
     # Evaluate command
