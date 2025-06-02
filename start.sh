@@ -44,6 +44,6 @@ pip3 install -r requirements.txt
 # python3 cli/main.py create
 # #--ollama-url http://localhost:11434 --realm-id $ASHOKA_REALM_ID
 
-# # Keep container running
-# echo "Container is ready. Use 'docker exec' to run commands or attach to this container."
-# tail -f /dev/null
+# Keep container running
+echo "Container is ready. Use 'docker exec' to run commands or attach to this container."
+tail -f /dev/null
