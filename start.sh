@@ -32,7 +32,7 @@ echo "Ollama is up and running at http://localhost:11434"
 echo "Pulling models..."
 ollama pull deepseek-r1:8b
 ollama pull llama3:8b
-ollama pull llama3.3:70b
+# ollama pull llama3.3:70b
 
 pip3 install --upgrade pip
 pip3 install -r requirements.txt
@@ -41,7 +41,8 @@ pip3 install -r requirements.txt
 python3 api.py &
 
 # Create AI governor
-python3 cli/main.py create --ollama-url http://localhost:11434 --realm-id $ASHOKA_REALM_ID
+python3 cli/main.py create
+#--ollama-url http://localhost:11434 --realm-id $ASHOKA_REALM_ID
 
 # Keep container running
 echo "Container is ready. Use 'docker exec' to run commands or attach to this container."
