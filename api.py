@@ -13,8 +13,16 @@ import os
 from pathlib import Path
 
 # Set up logging
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger("ashoka-api")
+logger.setLevel(logging.DEBUG)
+
+# Set DEBUG level for all loggers
+logging.getLogger().setLevel(logging.DEBUG)
+
+# Configure Flask's logger
+flask_logger = logging.getLogger('werkzeug')
+flask_logger.setLevel(logging.DEBUG)
 
 # Ensure we're in the correct directory
 os.chdir(Path(__file__).parent)
