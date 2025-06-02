@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Pull latest changes
+git pull
+
 # Set default realm ID
 export ASHOKA_REALM_ID="h5vpp-qyaaa-aaaac-qai3a-cai"
 export ASHOKA_MODEL="llama3:8b"
