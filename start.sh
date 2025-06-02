@@ -2,7 +2,7 @@
 
 # Set default realm ID
 export ASHOKA_REALM_ID="h5vpp-qyaaa-aaaac-qai3a-cai"
-export ASHOKA_MODEL="llama3.2:70b"
+export ASHOKA_MODEL="llama3.3:70b"
 export ASHOKA_USE_LLM=true
 echo "ASHOKA_REALM_ID=$ASHOKA_REALM_ID"
 echo "ASHOKA_MODEL=$ASHOKA_MODEL"
@@ -32,7 +32,7 @@ echo "Ollama is up and running at http://localhost:11434"
 echo "Pulling models..."
 ollama pull deepseek-r1:8b
 ollama pull llama3:8b
-ollama pull llama3.2:70b
+ollama pull llama3.3:70b
 
 pip3 install --upgrade pip
 pip3 install -r requirements.txt
