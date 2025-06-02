@@ -3,6 +3,8 @@
 # Pull latest changes
 git pull
 
+export DFX_WARNING=-mainnet_plaintext_identity
+
 # Set default realm ID
 export ASHOKA_REALM_ID="h5vpp-qyaaa-aaaac-qai3a-cai"
 export ASHOKA_MODEL="llama3:8b"
