@@ -9,6 +9,7 @@ import subprocess
 from typing import Dict, Optional
 
 logger = logging.getLogger("ashoka.realm")
+logger.setLevel(logging.DEBUG)
 
 def run_command(command):
     """Run a shell command and return its output."""
@@ -51,12 +52,8 @@ class RealmInterface:
             # Call the get_realm_data method on the canister using dfx with JSON output
             command = f'dfx canister {self.network_param} call {self.canister_id} extension_sync_call \'(record {{ extension_name = "llm_chat"; function_name = "get_realm_data"; args = "none"; }})\' --output=json'
             result = run_command(command)
+            logger.debug(f"Received result: {result}")
             
-            if not result:
-                logger.warning("Failed to get realm summary, returning mock summary")
-                return "Mock realm summary: This is a simulated realm for testing purposes."
-            
-            # Parse the JSON result
             try:
                 parsed_result = json.loads(result)
                 # JSON output for a string is typically just the string itself
