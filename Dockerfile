@@ -19,6 +19,7 @@ ENV PATH="/root/.ollama/bin:${PATH}"
 RUN mkdir -p /workspace/ollama
 ENV OLLAMA_HOME=/workspace/ollama
 
+WORKDIR /app
 # --- Clone Ashoka repository ---
 RUN git clone https://github.com/smart-social-contracts/ashoka.git
 
