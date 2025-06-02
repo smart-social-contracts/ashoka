@@ -439,10 +439,17 @@ def ask():
         
         # Build command with named arguments
         command = ['python', 'cli/main.py', 'ask', '--realm-id', realm_canister_id, '--ollama-url', ollama_url, question]
+        logger.info(f'Command: {command}')
         
         if str(os.environ.get('ASHOKA_USE_LLM')).lower() == 'true':
 
+            logger.info('Using LLM')
+
             result = subprocess.run(command, capture_output=True, text=True)
+
+            logger.info(f'LLM result: {result}')
+            logger.info(f'LLM result stdout: {result.stdout}')
+            logger.info(f'LLM result stderr: {result.stderr}')
             
             # Parse the output to extract the AI Governor response if possible
             ai_response = None

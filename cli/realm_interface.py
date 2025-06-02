@@ -102,7 +102,7 @@ class RealmInterface:
             
             # Call the submit_proposal method on the canister using dfx with JSON output
             command = f'dfx canister {self.network_param} call {self.canister_id} submit_proposal "(\\""{title}\\", \\""{content}\\")" --output=json'
-            logger.debug(f"Running command: {command}")
+            logger.info(f"Running command: {command}")
             result = run_command(command)
             
             if not result:
