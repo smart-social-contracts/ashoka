@@ -3,6 +3,7 @@ Realm Interface Module - Handles interactions with GGG-compliant realm canisters
 """
 
 import logging
+import os
 import json
 import subprocess
 from typing import Dict, Optional
@@ -32,15 +33,15 @@ class RealmInterface:
     def __init__(self, canister_id: str, network_url: str = "https://ic0.app"):
         """Initialize the realm interface."""
         self.canister_id = canister_id
-        self.network_url = network_url
         
-        # Configure network in dfx if not using mainnet
-        if network_url != "https://ic0.app":
-            self.network_param = f"--network {network_url}"
+        # Get network from environment variable if set, otherwise use the provided network_url
+        network = os.environ.get('ASHOKA_DFX_NETWORK')
+        if network:
+            self.network_param = f"--network {network}"
         else:
             self.network_param = ""
         
-        logger.info(f"RealmInterface initialized for canister: {canister_id}")
+        logger.info(f"RealmInterface initialized for canister: {canister_id} on network: {self.network_param}")
     
     def get_realm_data(self) -> Optional[str]:
         """Get a summary of the realm via the GGG interface."""

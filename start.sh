@@ -7,9 +7,11 @@ git pull
 export ASHOKA_REALM_ID="h5vpp-qyaaa-aaaac-qai3a-cai"
 export ASHOKA_MODEL="llama3:8b"
 export ASHOKA_USE_LLM=true
+export ASHOKA_DFX_NETWORK="staging"
 echo "ASHOKA_REALM_ID=$ASHOKA_REALM_ID"
 echo "ASHOKA_MODEL=$ASHOKA_MODEL"
 echo "ASHOKA_USE_LLM=$ASHOKA_USE_LLM"
+echo "ASHOKA_DFX_NETWORK=$ASHOKA_DFX_NETWORK"
 
 # Export OLLAMA_HOME explicitly
 export OLLAMA_HOST=0.0.0.0

@@ -326,19 +326,24 @@ def realm_query():
     # Required parameters
     canister_id = data.get('canister_id')
     if not canister_id:
-        return jsonify({"success": False, "error": "canister_id is required"}), 400
+        # Try to get realm ID from environment variable
+        canister_id = os.environ.get('ASHOKA_REALM_ID')
+        if not canister_id:
+            return jsonify({"success": False, "error": "canister_id is required and ASHOKA_REALM_ID environment variable is not set"}), 400
+        logger.info(f"Using canister ID from environment: {canister_id}")
     
     method = data.get('method')
     if not method:
         method = "get_realm_data"  # Default method
     
     args = data.get('args', [])
-    network = data.get('network', 'ic')
+    # Check environment variable first, then fall back to the request parameter
+    network = os.environ.get('ASHOKA_DFX_NETWORK') or data.get('network', 'ic')
     
-    logger.info(f"API: Querying realm canister {canister_id} with method {method}")
+    logger.info(f"API: Querying realm canister {canister_id} with method {method} on network {network}")
     
     # Determine network parameter for dfx
-    if network == 'ic' or network == 'https://ic0.app':
+    if not network:
         network_param = ""
     else:
         network_param = f"--network {network}"
