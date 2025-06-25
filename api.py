@@ -530,4 +530,4 @@ if __name__ == "__main__":
         subprocess.run([sys.executable, "-m", "pip", "install", "requests"], check=True)
     
     # Start the Flask server
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(host='0.0.0.0', port=5000, debug=False)
