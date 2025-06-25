@@ -412,9 +412,124 @@ def realm_query():
             "error": str(e)
         }), 500
 
+def handle_streaming_ask(realm_canister_id, question, ollama_url):
+    """Handle streaming LLM requests with Server-Sent Events."""
+    from flask import Response
+    import json
+    
+    def generate_streaming_response():
+        try:
+            from cli.ollama_client import OllamaClient
+            
+            ollama_client = OllamaClient(ollama_url)
+            
+            response = ollama_client.send_prompt_streaming(question)
+            
+            for line in response.iter_lines(decode_unicode=True):
+                if line:
+                    try:
+                        chunk_data = json.loads(line)
+                        
+                        content = chunk_data.get('response', '')
+                        
+                        if content:
+                            sse_data = json.dumps({"content": content})
+                            yield f"data: {sse_data}\n\n"
+                        
+                        if chunk_data.get('done', False):
+                            break
+                            
+                    except json.JSONDecodeError:
+                        continue
+                        
+            yield "data: [DONE]\n\n"
+            
+        except Exception as e:
+            logger.error(f"Error in streaming response: {str(e)}")
+            error_data = json.dumps({"error": str(e)})
+            yield f"data: {error_data}\n\n"
+    
+    return Response(
+        generate_streaming_response(),
+        mimetype='text/event-stream',
+        headers={
+            'Cache-Control': 'no-cache',
+            'Connection': 'keep-alive',
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Headers': 'Content-Type'
+        }
+    )
+
+def handle_non_streaming_ask(realm_canister_id, question, ollama_url):
+    """Handle non-streaming LLM requests (existing logic)."""
+    command = ['python', 'cli/main.py', 'ask', '--realm-id', realm_canister_id, '--ollama-url', ollama_url, question]
+    logger.info(f'Command: {command}')
+    
+    if str(os.environ.get('ASHOKA_USE_LLM')).lower() == 'true':
+        logger.info('Using LLM')
+        
+        result = subprocess.run(command, capture_output=True, text=True)
+        
+        logger.info(f'LLM result: {result}')
+        logger.info(f'LLM result stdout: {result.stdout}')
+        logger.info(f'LLM result stderr: {result.stderr}')
+        
+        ai_response = None
+        output_lines = result.stdout.split('\n')
+        start_idx = -1
+        end_idx = -1
+        
+        for i, line in enumerate(output_lines):
+            if "=== AI Governor Response ===" in line:
+                start_idx = i + 1
+            elif "===========================" in line and start_idx != -1:
+                end_idx = i
+                break
+        
+        if start_idx != -1 and end_idx != -1:
+            ai_response = "\n".join(output_lines[start_idx:end_idx]).strip()
+        
+        if result.returncode != 0:
+            logger.error(f"CLI command failed: {result.stderr}")
+            return jsonify({
+                "success": False,
+                "error": result.stderr,
+                "command_output": result.stdout
+            }), 500
+        
+        response = {
+            "success": True,
+            "command_output": result.stdout
+        }
+    else:
+        response = {
+            "success": True,
+            "command_output": ""
+        }
+        ai_response = '''        
+# This is a header
+
+This is a paragraph.
+
+* This is a list
+* With two items
+  1. And a sublist
+  2. That is ordered
+    * With another
+    * Sublist inside
+
+| And this is | A table |
+|-------------|---------|
+| With two    | columns |`
+        '''
+    
+    if ai_response:
+        response["ai_response"] = ai_response
+    
+    return jsonify(response)
+
 @app.route('/api/ask', methods=['POST'])
 def ask():
-
     try:
         """Ask a custom question about a realm."""
         data = request.json or {}
@@ -432,80 +547,16 @@ def ask():
         if not question:
             return jsonify({"success": False, "error": "question is required"}), 400
         
-        # Optional parameters
+        stream_requested = data.get('stream', False)
+        
         ollama_url = data.get('ollama_url', 'http://localhost:11434')
         
-        logger.info(f"API: Asking question about realm {realm_canister_id}")
+        logger.info(f"API: Asking question about realm {realm_canister_id}, streaming: {stream_requested}")
         
-        # Build command with named arguments
-        command = ['python', 'cli/main.py', 'ask', '--realm-id', realm_canister_id, '--ollama-url', ollama_url, question]
-        logger.info(f'Command: {command}')
-        
-        if str(os.environ.get('ASHOKA_USE_LLM')).lower() == 'true':
-
-            logger.info('Using LLM')
-
-            result = subprocess.run(command, capture_output=True, text=True)
-
-            logger.info(f'LLM result: {result}')
-            logger.info(f'LLM result stdout: {result.stdout}')
-            logger.info(f'LLM result stderr: {result.stderr}')
-            
-            # Parse the output to extract the AI Governor response if possible
-            ai_response = None
-            output_lines = result.stdout.split('\n')
-            start_idx = -1
-            end_idx = -1
-            
-            for i, line in enumerate(output_lines):
-                if "=== AI Governor Response ===" in line:
-                    start_idx = i + 1
-                elif "===========================" in line and start_idx != -1:
-                    end_idx = i
-                    break
-            
-            if start_idx != -1 and end_idx != -1:
-                ai_response = "\n".join(output_lines[start_idx:end_idx]).strip()
-            
-            if result.returncode != 0:
-                logger.error(f"CLI command failed: {result.stderr}")
-                return jsonify({
-                    "success": False,
-                    "error": result.stderr,
-                    "command_output": result.stdout
-                }), 500
-            
-            response = {
-                "success": True,
-                "command_output": result.stdout
-            }
+        if stream_requested:
+            return handle_streaming_ask(realm_canister_id, question, ollama_url)
         else:
-            response = {
-                "success": True,
-                "command_output": ""
-            }
-            ai_response = '''        
-# This is a header
-
-This is a paragraph.
-
-* This is a list
-* With two items
-  1. And a sublist
-  2. That is ordered
-    * With another
-    * Sublist inside
-
-| And this is | A table |
-|-------------|---------|
-| With two    | columns |`
-            '''
-        
-
-        if ai_response:
-            response["ai_response"] = ai_response
-        
-        return jsonify(response)
+            return handle_non_streaming_ask(realm_canister_id, question, ollama_url)
         
     except Exception as e:
         logger.error(f"Error running CLI command: {str(e)}")
