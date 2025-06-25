@@ -26,8 +26,11 @@ echo "OLLAMA_HOME=$OLLAMA_HOME"
 echo "OLLAMA_MODELS=$OLLAMA_MODELS"
 chmod -R 777 $OLLAMA_HOME
 
+# Create logs directory
+mkdir -p logs
+
 # Start Ollama in the background
-ollama serve &
+ollama serve 2>&1 | tee -a logs/ollama.log &
 
 # Wait until Ollama is ready (port 11434 open)
 echo "Waiting for Ollama to become available..."
@@ -47,10 +50,10 @@ pip3 install --upgrade pip
 pip3 install -r requirements.txt
 
 # Run API server
-python3 api.py &
+python3 api.py 2>&1 | tee -a logs/api.log &
 
 # Create AI governor
-python3 cli/main.py create
+python3 cli/main.py create 2>&1 | tee -a logs/cli_main_create.log
 # #--ollama-url http://localhost:11434 --realm-id $ASHOKA_REALM_ID
 
 # Keep container running
