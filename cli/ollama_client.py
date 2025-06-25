@@ -7,7 +7,10 @@ import logging
 import os
 import requests
 from typing import Dict
-from cli.constants import DEFAULT_MODEL
+try:
+    from cli.constants import DEFAULT_MODEL
+except ImportError:
+    from constants import DEFAULT_MODEL
 
 logger = logging.getLogger("ashoka.ollama")
 logger.setLevel(logging.DEBUG)
