@@ -50,6 +50,33 @@ class OllamaClient:
             logger.error(f"Error communicating with Ollama API: {str(e)}")
             return f"Error: {str(e)}"
     
+    def send_prompt_streaming(self, prompt: str):
+        """Send a prompt to the Ollama API and get a streaming response."""
+        try:
+            url = f"{self.api_url}/api/generate"
+            
+            payload = {
+                "model": self.model,
+                "prompt": prompt,
+                "stream": True
+            }
+            
+            logger.debug(f"Sending streaming prompt to Ollama: {prompt[:100]}...")
+            logger.debug(f"API Request URL: {url}")
+            logger.debug(f"API Request Payload: {payload}")
+            
+            response = requests.post(url, json=payload, stream=True)
+            response.raise_for_status()
+            
+            logger.debug(f"API Response Status Code: {response.status_code}")
+            logger.debug(f"API Response Headers: {response.headers}")
+            
+            return response
+            
+        except requests.RequestException as e:
+            logger.error(f"Error communicating with Ollama API: {str(e)}")
+            raise e
+    
     def parse_proposal(self, response: str) -> Dict[str, str]:
         """Parse the JSON proposal from the model's response."""
         try:
