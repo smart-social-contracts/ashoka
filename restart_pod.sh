@@ -1,8 +1,13 @@
 #!/bin/bash
 
 # === CONFIGURATION ===
-POD_ID="wln5vv6cvqorp9"
+# Source the local production.env
+source $(dirname "$0")/production.env
+
+# Extract POD_ID from SERVER_HOST
+POD_ID=$(echo $SERVER_HOST | cut -d'-' -f1)
 API="https://rest.runpod.io/v1/pods"
+
 
 # === STOP POD ===
 echo "Stopping Pod $POD_ID..."
