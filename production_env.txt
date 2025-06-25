@@ -1,1 +1,1 @@
-SERVER_HOST=wln5vv6cvqorp9-5000.proxy.runpod.net
+SERVER_HOST=xvkzhf2usil1yz-5000.proxy.runpod.net
