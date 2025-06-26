@@ -1,5 +1,5 @@
-from langchain.prompts import PromptTemplate
 from langchain.chains import RetrievalQAWithSourcesChain
+from langchain.prompts import PromptTemplate
 
 # System-level instructions
 template = """You are an AI governor advising a decentralized digital realm.
@@ -18,17 +18,15 @@ Only answer with a JSON object like:
 """
 
 custom_prompt = PromptTemplate(
-    input_variables=["context", "question"],
-    template=template
+    input_variables=["context", "question"], template=template
 )
 
-qa_chain = RetrievalQAWithSourcesChain.from_chain_type(
-    llm=llm,
-    retriever=retriever,
-    chain_type_kwargs={"prompt": custom_prompt}
-)
+# TODO: implement
+# qa_chain = RetrievalQAWithSourcesChain.from_chain_type(
+#     llm=llm, retriever=retriever, chain_type_kwargs={"prompt": custom_prompt}
+# )
 
-query = "What should this realm do to improve citizen participation?"
-result = qa_chain.run(query)
+# query = "What should this realm do to improve citizen participation?"
+# result = qa_chain.run(query)
 
-print(result)
+# print(result)
