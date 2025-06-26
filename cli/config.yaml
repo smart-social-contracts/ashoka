@@ -15,3 +15,10 @@ ic_network_url: "https://ic0.app"
 # MCP settings
 governor_id: "ashoka-governor"
 default_proposal_price: 0
+
+chromadb_host: "localhost"
+chromadb_port: 8000
+embedding_model: "all-MiniLM-L6-v2"
+similarity_threshold: 0.80
+test_collection_name: "ashoka_test"
+prod_collection_name: "ashoka_prod"

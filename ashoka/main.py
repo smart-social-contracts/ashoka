@@ -21,6 +21,15 @@ custom_prompt = PromptTemplate(
     input_variables=["context", "question"], template=template
 )
 
+try:
+    from rag.retrieval import RAGRetriever
+    rag_retriever = RAGRetriever(environment="prod")
+    
+    # )
+    # template = augmented_prompt
+except Exception as e:
+    print(f"Warning: RAG system unavailable, using original prompt: {e}")
+
 # TODO: implement
 # qa_chain = RetrievalQAWithSourcesChain.from_chain_type(
 #     llm=llm, retriever=retriever, chain_type_kwargs={"prompt": custom_prompt}

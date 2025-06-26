@@ -26,7 +26,13 @@ RUN git clone https://github.com/smart-social-contracts/ashoka.git
 # --- Python environment ---
 WORKDIR /app/ashoka
 
+# Install Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Create ChromaDB data directory
+RUN mkdir -p /app/chromadb_data
+
 EXPOSE 11434
-EXPOSE 5000
+EXPOSE 5000 8000
 
 CMD ["./start.sh"]

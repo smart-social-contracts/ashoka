@@ -73,6 +73,18 @@ def run_command(args, config):
     # Get realm context
     logger.info("Fetching realm summary")
     realm_summary = realm.get_realm_data()
+    
+    try:
+        from rag.retrieval import RAGRetriever
+        rag_retriever = RAGRetriever(environment="prod")
+        contexts = rag_retriever.retrieve_context(
+            f"governance proposal for {realm_summary.get('name', 'realm')}", 
+            n_results=2
+        )
+        if contexts:
+            realm_summary["rag_context"] = contexts
+    except Exception as e:
+        logger.debug(f"RAG context unavailable: {e}")
 
     if not realm_summary:
         logger.error("Failed to retrieve realm summary")
@@ -140,10 +152,34 @@ def ask_command(args, config):
     # Get realm context
     logger.info("Fetching realm summary")
     realm_summary = realm.get_realm_data()
+    
+    try:
+        from rag.retrieval import RAGRetriever
+        rag_retriever = RAGRetriever(environment="prod")
+        contexts = rag_retriever.retrieve_context(
+            f"governance proposal for {realm_summary.get('name', 'realm')}", 
+            n_results=2
+        )
+        if contexts:
+            realm_summary["rag_context"] = contexts
+    except Exception as e:
+        logger.debug(f"RAG context unavailable: {e}")
 
     if not realm_summary:
         logger.error("Failed to retrieve realm summary")
         return
+
+    enhanced_question = args.question
+    try:
+        from rag.retrieval import RAGRetriever
+        rag_retriever = RAGRetriever(environment="prod")
+        enhanced_question = rag_retriever.generate_augmented_prompt(
+            original_prompt=f"answer this question: {args.question}",
+            query=args.question,
+            n_contexts=2
+        )
+    except Exception as e:
+        logger.debug(f"RAG enhancement unavailable: {e}")
 
     # Construct prompt with realm context and custom question
     prompt = f"""
@@ -152,7 +188,7 @@ def ask_command(args, config):
     Here is the current state of the realm:
     {realm_summary}
     
-    Question: {args.question}
+    Question: {enhanced_question}
     
     Please provide a thorough answer based on the realm's context.
     """
@@ -370,6 +406,29 @@ def benchmark_command(args, config):
         logger.info(f"Benchmark results saved to {args.output}")
 
 
+def rag_embed_command(args, config):
+    """Embed governance documents into ChromaDB."""
+    logger.info("Embedding governance documents...")
+    
+    try:
+        from rag.retrieval import RAGRetriever
+        
+        rag_retriever = RAGRetriever(environment=args.environment)
+        
+        documents = []
+        with open(args.documents, "r") as f:
+            for line in f:
+                doc = json.loads(line.strip())
+                documents.append(doc)
+        
+        rag_retriever.add_governance_documents(documents)
+        logger.info(f"Successfully embedded {len(documents)} documents")
+        
+    except Exception as e:
+        logger.error(f"Failed to embed documents: {e}")
+        sys.exit(1)
+
+
 def main():
     """Main entry point for the ashoka CLI."""
     parser = argparse.ArgumentParser(
@@ -468,6 +527,17 @@ def main():
         "--output", help="Path to save benchmark results as JSON"
     )
 
+    parser_rag_embed = subparsers.add_parser(
+        "rag-embed", help="Embed governance documents into ChromaDB"
+    )
+    parser_rag_embed.add_argument(
+        "--documents", required=True, help="Path to JSONL file with governance documents"
+    )
+    parser_rag_embed.add_argument(
+        "--environment", default="prod", choices=["test", "prod"], 
+        help="ChromaDB environment (test or prod)"
+    )
+
     args = parser.parse_args()
 
     # Load configuration
@@ -488,6 +558,8 @@ def main():
         evaluate_command(args, config)
     elif args.command == "benchmark":
         benchmark_command(args, config)
+    elif args.command == "rag-embed":
+        rag_embed_command(args, config)
     else:
         parser.print_help()
         return 1
