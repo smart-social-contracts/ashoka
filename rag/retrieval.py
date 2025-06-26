@@ -4,6 +4,7 @@ Combines ChromaDB vector search with context generation.
 """
 
 import logging
+import os
 from typing import Dict, List, Optional
 
 from .chromadb_client import ChromaDBClient
@@ -15,17 +16,19 @@ logger = logging.getLogger(__name__)
 class RAGRetriever:
     """RAG retrieval system combining vector search and context generation."""
 
-    def __init__(self, chromadb_host: str = "localhost", chromadb_port: int = 8000, 
+    def __init__(self, chromadb_host: str = None, chromadb_port: int = None, 
                  environment: str = "prod", embedding_model: str = "all-MiniLM-L6-v2"):
         """Initialize RAG retriever.
         
         Args:
-            chromadb_host: ChromaDB server host
-            chromadb_port: ChromaDB server port
+            chromadb_host: ChromaDB server host (defaults to CHROMADB_HOST env var or localhost)
+            chromadb_port: ChromaDB server port (defaults to CHROMADB_PORT env var or 8000)
             environment: Environment ('test' or 'prod')
             embedding_model: Sentence transformer model name
         """
-        self.chromadb_client = ChromaDBClient(chromadb_host, chromadb_port, environment)
+        host = chromadb_host or os.environ.get('CHROMADB_HOST', 'localhost')
+        port = chromadb_port or int(os.environ.get('CHROMADB_PORT', '8000'))
+        self.chromadb_client = ChromaDBClient(host, port, environment)
         self.embedding_pipeline = EmbeddingPipeline(embedding_model)
         self.environment = environment
         

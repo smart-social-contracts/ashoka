@@ -16,26 +16,26 @@ logger = logging.getLogger(__name__)
 class ChromaDBClient:
     """ChromaDB client with environment-aware collection management."""
 
-    def __init__(self, host: str = "localhost", port: int = 8000, environment: str = "prod"):
+    def __init__(self, host: str = None, port: int = None, environment: str = "prod"):
         """Initialize ChromaDB client.
         
         Args:
-            host: ChromaDB server host
-            port: ChromaDB server port
+            host: ChromaDB server host (defaults to CHROMADB_HOST env var or localhost)
+            port: ChromaDB server port (defaults to CHROMADB_PORT env var or 8000)
             environment: Environment ('test' or 'prod') for collection separation
         """
-        self.host = host
-        self.port = port
+        self.host = host or os.environ.get('CHROMADB_HOST', 'localhost')
+        self.port = port or int(os.environ.get('CHROMADB_PORT', '8000'))
         self.environment = environment
         self.collection_name = f"ashoka_{environment}"
         
         try:
             self.client = chromadb.HttpClient(
-                host=host,
-                port=port,
+                host=self.host,
+                port=self.port,
                 settings=Settings(allow_reset=True if environment == "test" else False)
             )
-            logger.info(f"Connected to ChromaDB at {host}:{port}")
+            logger.info(f"Connected to ChromaDB at {self.host}:{self.port}")
         except Exception as e:
             logger.error(f"Failed to connect to ChromaDB: {e}")
             raise

@@ -23,9 +23,15 @@ TEST_DATA_FILE = Path(__file__).parent / "sample_training_data.jsonl"
 def test_chromadb():
     """Initialize test ChromaDB instance."""
     client = ChromaDBClient(environment="test")
-    client.reset_collection()  # Clean slate for tests
+    try:
+        client.reset_collection()  # Clean slate for tests
+    except Exception as e:
+        logger.warning(f"Could not reset collection (may be disabled): {e}")
     yield client
-    client.reset_collection()  # Cleanup after tests
+    try:
+        client.reset_collection()  # Cleanup after tests
+    except Exception as e:
+        logger.warning(f"Could not reset collection during cleanup: {e}")
 
 
 @pytest.fixture(scope="session")
