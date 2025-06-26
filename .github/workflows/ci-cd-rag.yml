@@ -15,11 +15,6 @@ jobs:
         image: chromadb/chroma:latest
         ports:
           - 8000:8000
-        options: >-
-          --health-cmd "curl -f http://localhost:8000/api/v2/heartbeat || exit 1"
-          --health-interval 15s
-          --health-timeout 10s
-          --health-retries 10
 
     steps:
     - uses: actions/checkout@v4
