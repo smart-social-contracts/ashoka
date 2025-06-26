@@ -16,10 +16,10 @@ jobs:
         ports:
           - 8000:8000
         options: >-
-          --health-cmd "curl -f http://localhost:8000/api/v1/heartbeat || exit 1"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
+          --health-cmd "curl -f http://localhost:8000/api/v2/heartbeat || exit 1"
+          --health-interval 15s
+          --health-timeout 10s
+          --health-retries 10
 
     steps:
     - uses: actions/checkout@v4
@@ -45,15 +45,20 @@ jobs:
     
     - name: Wait for ChromaDB to be ready
       run: |
-        for i in {1..30}; do
-          if curl -s http://localhost:8000/api/v1/heartbeat > /dev/null 2>&1; then
+        echo "Waiting for ChromaDB service to be healthy..."
+        for i in {1..60}; do
+          if curl -s http://localhost:8000/api/v2/heartbeat > /dev/null 2>&1; then
             echo "ChromaDB is ready!"
+            curl -s http://localhost:8000/api/v2/heartbeat
             break
           fi
-          if [ $i -eq 30 ]; then
-            echo "ChromaDB failed to start within 30 seconds"
+          if [ $i -eq 60 ]; then
+            echo "ChromaDB failed to start within 120 seconds"
+            echo "Checking ChromaDB container status:"
+            docker ps -a | grep chroma || echo "No ChromaDB containers found"
             exit 1
           fi
+          echo "Attempt $i/60: ChromaDB not ready yet, waiting..."
           sleep 2
         done
     
@@ -69,44 +74,11 @@ jobs:
         CHROMADB_HOST: localhost
         CHROMADB_PORT: 8000
       run: |
-        python -c "
-        from rag.retrieval import RAGRetriever
-        from rag.embeddings import EmbeddingPipeline
-        
-        # Test RAG system initialization
-        rag = RAGRetriever(environment='test')
-        health = rag.health_check()
-        assert health['chromadb'], 'ChromaDB should be healthy'
-        assert health['embedding_model'], 'Embedding model should be healthy'
-        
-        # Test embedding pipeline
-        embedder = EmbeddingPipeline()
-        embeddings = embedder.encode(['test sentence'])
-        assert len(embeddings[0]) > 0, 'Should generate embeddings'
-        
-        print('RAG system integration test passed!')
-        "
+        python test_rag_integration.py
     
     - name: Test semantic similarity threshold
       run: |
-        python -c "
-        from rag.embeddings import EmbeddingPipeline
-        
-        embedder = EmbeddingPipeline()
-        
-        # Test similar governance texts
-        text1 = 'A DAO should allocate treasury funds with community oversight and transparency.'
-        text2 = 'DAOs must allocate treasury resources with community supervision and openness.'
-        
-        emb1 = embedder.encode_single(text1)
-        emb2 = embedder.encode_single(text2)
-        similarity = embedder.compute_similarity(emb1, emb2)
-        
-        print(f'Similarity score: {similarity:.3f}')
-        assert similarity >= 0.80, f'Similarity {similarity:.3f} below threshold 0.80'
-        
-        print('Semantic similarity threshold test passed!')
-        "
+        python test_semantic_similarity.py
 
   build-and-deploy:
     needs: test-rag-semantic
@@ -137,7 +109,7 @@ jobs:
         sleep 30
         
         # Test ChromaDB health
-        curl -f http://localhost:8000/api/v1/heartbeat || exit 1
+        curl -f http://localhost:8000/api/v2/heartbeat || exit 1
         
         # Test Flask API health
         curl -f http://localhost:5000/health || exit 1
