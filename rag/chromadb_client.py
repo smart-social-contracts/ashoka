@@ -43,6 +43,13 @@ class ChromaDBClient:
     def get_or_create_collection(self, embedding_function=None):
         """Get or create the collection for this environment."""
         try:
+            if embedding_function is None:
+                from sentence_transformers import SentenceTransformer
+                import chromadb.utils.embedding_functions as embedding_functions
+                embedding_function = embedding_functions.SentenceTransformerEmbeddingFunction(
+                    model_name="all-MiniLM-L6-v2"
+                )
+            
             collection = self.client.get_or_create_collection(
                 name=self.collection_name,
                 embedding_function=embedding_function
@@ -87,8 +94,19 @@ class ChromaDBClient:
             raise ValueError("Collection reset only allowed in test environment")
         
         try:
-            self.client.reset()
-            logger.info(f"Reset collection: {self.collection_name}")
+            try:
+                self.client.delete_collection(name=self.collection_name)
+                logger.info(f"Deleted collection: {self.collection_name}")
+            except Exception:
+                logger.debug(f"Collection {self.collection_name} may not exist, continuing...")
+            
+            try:
+                self.client.reset()
+                logger.info(f"Reset ChromaDB client")
+            except Exception as reset_error:
+                logger.warning(f"Reset not allowed or failed: {reset_error}")
+                # This is acceptable for test environment
+                
         except Exception as e:
             logger.error(f"Failed to reset collection: {e}")
             raise

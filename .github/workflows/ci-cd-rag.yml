@@ -37,6 +37,19 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         pip install pytest pytest-cov scikit-learn numpy
+        
+    - name: Verify critical dependencies are installed
+      run: |
+        python -c "import chromadb; print('ChromaDB installed successfully')"
+        python -c "import sentence_transformers; print('sentence-transformers installed successfully')"
+        python -c "import sklearn; print('scikit-learn installed successfully')"
+        
+    - name: Verify RAG module can be imported
+      run: |
+        python -c "import rag; print('RAG module imported successfully')"
+        python -c "from rag.chromadb_client import ChromaDBClient; print('ChromaDBClient imported successfully')"
+        python -c "from rag.embeddings import EmbeddingPipeline; print('EmbeddingPipeline imported successfully')"
+        python -c "from rag.retrieval import RAGRetriever; print('RAGRetriever imported successfully')"
     
     - name: Wait for ChromaDB to be ready
       run: |
@@ -61,17 +74,21 @@ jobs:
       env:
         CHROMADB_HOST: localhost
         CHROMADB_PORT: 8000
+        PYTHONPATH: .
       run: |
-        pytest tests/test_rag_semantic.py -v --tb=short
+        python -m pytest tests/test_rag_semantic.py -v --tb=short
     
     - name: Test RAG system integration
       env:
         CHROMADB_HOST: localhost
         CHROMADB_PORT: 8000
+        PYTHONPATH: .
       run: |
         python test_rag_integration.py
     
     - name: Test semantic similarity threshold
+      env:
+        PYTHONPATH: .
       run: |
         python test_semantic_similarity.py
 
