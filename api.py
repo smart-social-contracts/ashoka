@@ -10,6 +10,8 @@ import json
 import logging
 import sys
 import os
+import time
+import threading
 from pathlib import Path
 
 try:
@@ -18,6 +20,8 @@ try:
 except ImportError:
     RAG_AVAILABLE = False
 
+TIMEOUT_SECONDS = 3600
+CHECK_INTERVAL = 60
 # Set up logging
 logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger("ashoka-api")
@@ -33,6 +37,9 @@ flask_logger.setLevel(logging.DEBUG)
 # Ensure we're in the correct directory
 os.chdir(Path(__file__).parent)
 
+# Global variable to track last request time
+last_request_time = time.time()
+
 app = Flask(__name__)
 CORS(app, resources={r"/api/*": {"origins": "*"}})  # For development - restrict origins in production
 
@@ -43,6 +50,57 @@ if RAG_AVAILABLE:
     except Exception as e:
         logger.error(f"Warning: Failed to initialize RAG retriever: {e}")
 
+def update_last_request_time():
+    """Update the timestamp of the last request."""
+    global last_request_time
+    last_request_time = time.time()
+    logger.debug(f"Updated last request time: {last_request_time}")
+
+def inactivity_monitor(timeout_seconds=TIMEOUT_SECONDS, check_interval=CHECK_INTERVAL):
+    """
+    Background thread that monitors for inactivity and shuts down the pod.
+    
+    Args:
+        timeout_seconds: Time in seconds before shutdown (default: 1 hour)
+        check_interval: How often to check for inactivity (default: 1 minute)
+    """
+    logger.info(f"Starting inactivity monitor - will shutdown after {timeout_seconds} seconds of inactivity")
+    
+    while True:
+        time.sleep(check_interval)
+        current_time = time.time()
+        time_since_last_request = current_time - last_request_time
+        
+        logger.debug(f"Checking inactivity: {time_since_last_request:.1f}s since last request")
+        
+        if time_since_last_request > timeout_seconds:
+            logger.info(f"No requests for {timeout_seconds} seconds. Shutting down pod.")
+            
+            # Try to stop the runpod gracefully using runpodctl
+            try:
+                runpod_id = os.environ.get('RUNPOD_POD_ID')
+                if runpod_id:
+                    logger.info(f"Stopping runpod {runpod_id} using runpodctl")
+                    result = subprocess.run(['runpodctl', 'stop', runpod_id], 
+                                          capture_output=True, text=True, timeout=30)
+                    if result.returncode == 0:
+                        logger.info("Successfully stopped runpod")
+                    else:
+                        logger.warning(f"runpodctl stop failed: {result.stderr}")
+                else:
+                    logger.warning("RUNPOD_POD_ID environment variable not found")
+            except subprocess.TimeoutExpired:
+                logger.error("runpodctl stop command timed out")
+            except Exception as e:
+                logger.error(f"Error stopping runpod: {e}")
+            
+            # Use os._exit(0) to immediately terminate the process
+            os._exit(0)
+
+@app.before_request
+def before_request():
+    """Update the last request time before processing any request."""
+    update_last_request_time()
 @app.route('/', methods=['GET'])
 def health_check():
     """Simple health check endpoint."""
@@ -654,6 +712,11 @@ if __name__ == "__main__":
     except ImportError:
         print("Requests not found. Installing...")
         subprocess.run([sys.executable, "-m", "pip", "install", "requests"], check=True)
+    
+    # Start the inactivity monitor thread
+    monitor_thread = threading.Thread(target=inactivity_monitor, daemon=True)
+    monitor_thread.start()
+    logger.info("Inactivity monitor started - pod will shutdown after 1 hour of inactivity")
     
     # Start the Flask server
     app.run(host='0.0.0.0', port=5000, debug=False)
