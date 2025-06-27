@@ -3,6 +3,20 @@
 
 An off-chain AI governor for GGG-compliant realms on the Internet Computer.
 
+## Quickstart
+
+```
+docker run \
+  --name ashoka-container \
+  -v $(pwd)/workspace:/workspace \
+  -p 11434:11434 \
+  -p 5000:5000 \
+  -p 22:22 \
+  -p 443:443 \
+  --shm-size=20g \
+  docker.io/smartsocialcontracts/ashoka:latest
+```
+
 ## Overview
 
 ashoka connects to decentralized realms and proposes improvements in governance by leveraging AI models. It uses a local or remote LLM (served via Ollama) and connects to a GGG-compliant realm canister.

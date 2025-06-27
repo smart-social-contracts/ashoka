@@ -58,5 +58,5 @@ docker-compose.override.yml
 *.bak
 temp/
 
-# Ollama data (workspace)
-ollama_data
+# Runpod workspace persistence volume
+workspace
