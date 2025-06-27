@@ -158,4 +158,3 @@ jobs:
         echo "- Environment separation (test vs prod collections)"
         echo "- Health checks for both Flask API and ChromaDB"
         echo "- RAG system initialization with governance documents"
-# Trigger CI workflow
