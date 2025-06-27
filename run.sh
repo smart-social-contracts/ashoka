@@ -1,4 +1,22 @@
 #!/bin/bash
+set -e
+
+# Create logs directory if it doesn't exist
+mkdir -p logs
+
+# Create workspace directories if they don't exist
+mkdir -p /workspace/ollama
+mkdir -p /workspace/venv
+mkdir -p /workspace/chromadb_data
+
+# Setup Python virtual environment in the persistent volume
+if [ ! -d "/workspace/venv" ]; then
+    echo "Creating new virtual environment in /workspace/venv..."
+    python3 -m venv /workspace/venv
+fi
+
+# Activate the virtual environment
+source /workspace/venv/bin/activate
 
 export DFX_WARNING=-mainnet_plaintext_identity
 
@@ -21,9 +39,6 @@ echo "OLLAMA_HOME=$OLLAMA_HOME"
 echo "OLLAMA_MODELS=$OLLAMA_MODELS"
 chmod -R 777 $OLLAMA_HOME
 
-# Create logs directory
-mkdir -p logs
-
 # Start Ollama in the background
 ollama serve 2>&1 | tee -a logs/ollama.log &
 
@@ -41,12 +56,20 @@ ollama pull deepseek-r1:8b
 ollama pull llama3:8b
 # ollama pull llama3.3:70b
 
-pip3 install --upgrade pip
-pip3 install -r requirements.txt
+# Check if requirements have been installed already
+if [ ! -f "/workspace/venv/.requirements_installed" ]; then
+    echo "Installing Python requirements..."
+    pip3 install --upgrade pip
+    pip3 install -r requirements.txt
+    # Create a flag file to indicate requirements are installed
+    touch /workspace/venv/.requirements_installed
+else
+    echo "Python requirements already installed, skipping installation."
+fi
 
 # Start ChromaDB server in background
 echo "Starting ChromaDB server..."
-chromadb run --host 0.0.0.0 --port 8000 --path /app/chromadb_data 2>&1 | tee -a logs/chromadb.log &
+chromadb run --host 0.0.0.0 --port 8000 --path /workspace/chromadb_data 2>&1 | tee -a logs/chromadb.log &
 CHROMADB_PID=$!
 
 echo "Waiting for ChromaDB to be ready..."
