@@ -44,6 +44,24 @@ ollama pull llama3:8b
 pip3 install --upgrade pip
 pip3 install -r requirements.txt
 
+# Start ChromaDB server in background
+echo "Starting ChromaDB server..."
+chromadb run --host 0.0.0.0 --port 8000 --path /app/chromadb_data 2>&1 | tee -a logs/chromadb.log &
+CHROMADB_PID=$!
+
+echo "Waiting for ChromaDB to be ready..."
+for i in {1..30}; do
+    if curl -s http://localhost:8000/api/v1/heartbeat > /dev/null 2>&1; then
+        echo "ChromaDB is ready!"
+        break
+    fi
+    if [ $i -eq 30 ]; then
+        echo "ChromaDB failed to start within 30 seconds"
+        exit 1
+    fi
+    sleep 1
+done
+
 # Run API server
 python3 api.py 2>&1 | tee -a logs/api.log &
 

@@ -1,0 +1,179 @@
+name: CI/CD RAG Testing Pipeline
+
+on:
+  push:
+    branches-ignore: [main]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to test (test/prod)'
+        required: false
+        default: 'test'
+
+jobs:
+  test-rag-semantic:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    
+    services:
+      chromadb:
+        image: chromadb/chroma:latest
+        ports:
+          - 8000:8000
+
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python 3.12
+      uses: actions/setup-python@v3
+      with:
+        python-version: '3.12'
+    
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest pytest-cov scikit-learn numpy
+        
+    - name: Install package in development mode
+      run: |
+        pip install -e .
+        
+    - name: Verify critical dependencies are installed
+      run: |
+        python -c "import chromadb; print('ChromaDB installed successfully')"
+        python -c "import sentence_transformers; print('sentence-transformers installed successfully')"
+        python -c "import sklearn; print('scikit-learn installed successfully')"
+        
+    - name: Verify RAG module can be imported
+      run: |
+        python -c "import rag; print('RAG module imported successfully')"
+        python -c "from rag.chromadb_client import ChromaDBClient; print('ChromaDBClient imported successfully')"
+        python -c "from rag.embeddings import EmbeddingPipeline; print('EmbeddingPipeline imported successfully')"
+        python -c "from rag.retrieval import RAGRetriever; print('RAGRetriever imported successfully')"
+    
+    - name: Wait for ChromaDB to be ready
+      run: |
+        echo "Waiting for ChromaDB service to be healthy..."
+        for i in {1..60}; do
+          if curl -s http://localhost:8000/api/v2/heartbeat > /dev/null 2>&1; then
+            echo "ChromaDB is ready!"
+            curl -s http://localhost:8000/api/v2/heartbeat
+            break
+          fi
+          if [ $i -eq 60 ]; then
+            echo "ChromaDB failed to start within 120 seconds"
+            echo "Checking ChromaDB container status:"
+            docker ps -a | grep chroma || echo "No ChromaDB containers found"
+            exit 1
+          fi
+          echo "Attempt $i/60: ChromaDB not ready yet, waiting..."
+          sleep 2
+        done
+    
+    - name: Run RAG semantic similarity tests
+      env:
+        CHROMADB_HOST: localhost
+        CHROMADB_PORT: 8000
+        PYTHONPATH: .
+      run: |
+        python -m pytest tests/test_rag_semantic.py -v --tb=short
+    
+    - name: Test RAG system integration
+      env:
+        CHROMADB_HOST: localhost
+        CHROMADB_PORT: 8000
+        PYTHONPATH: .
+      run: |
+        python test_rag_integration.py
+    
+    - name: Test semantic similarity threshold
+      env:
+        PYTHONPATH: .
+      run: |
+        python test_semantic_similarity.py
+
+  build-and-deploy:
+    needs: test-rag-semantic
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    
+    - name: Login to Docker Hub
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+    
+    - name: Build and test Docker image
+      run: |
+        docker build -t ashoka-rag-test .
+        
+        # Test that the image can start ChromaDB
+        docker run --rm -d --name ashoka-test -p 5000:5000 -p 8000:8000 ashoka-rag-test &
+        CONTAINER_ID=$!
+        
+        # Wait for services to start
+        sleep 30
+        
+        # Test ChromaDB health
+        curl -f http://localhost:8000/api/v2/heartbeat || exit 1
+        
+        # Test Flask API health
+        curl -f http://localhost:5000/health || exit 1
+        
+        # Test RAG health endpoint
+        curl -f http://localhost:5000/api/rag-health || exit 1
+        
+        # Cleanup
+        docker stop ashoka-test || true
+    
+    - name: Build and push to Docker Hub
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        push: true
+        tags: |
+          ${{ secrets.DOCKERHUB_USERNAME }}/ashoka:latest
+          ${{ secrets.DOCKERHUB_USERNAME }}/ashoka:rag-${{ github.sha }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+  deploy-staging:
+    needs: build-and-deploy
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: Deploy to staging
+      run: |
+        echo "Deploying Ashoka RAG system to staging environment..."
+        echo "Docker image: ${{ secrets.DOCKERHUB_USERNAME }}/ashoka:rag-${{ github.sha }}"
+        echo "Deployment would include:"
+        echo "- ChromaDB persistent volume mount"
+        echo "- Environment separation (test vs prod collections)"
+        echo "- Health checks for both Flask API and ChromaDB"
+        echo "- RAG system initialization with governance documents"

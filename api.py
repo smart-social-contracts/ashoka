@@ -14,9 +14,14 @@ import time
 import threading
 from pathlib import Path
 
+try:
+    from rag.retrieval import RAGRetriever
+    RAG_AVAILABLE = True
+except ImportError:
+    RAG_AVAILABLE = False
+
 TIMEOUT_SECONDS = 3600
 CHECK_INTERVAL = 60
-
 # Set up logging
 logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger("ashoka-api")
@@ -37,6 +42,13 @@ last_request_time = time.time()
 
 app = Flask(__name__)
 CORS(app, resources={r"/api/*": {"origins": "*"}})  # For development - restrict origins in production
+
+rag_retriever = None
+if RAG_AVAILABLE:
+    try:
+        rag_retriever = RAGRetriever(environment="prod")
+    except Exception as e:
+        logger.error(f"Warning: Failed to initialize RAG retriever: {e}")
 
 def update_last_request_time():
     """Update the timestamp of the last request."""
@@ -89,7 +101,6 @@ def inactivity_monitor(timeout_seconds=TIMEOUT_SECONDS, check_interval=CHECK_INT
 def before_request():
     """Update the last request time before processing any request."""
     update_last_request_time()
-
 @app.route('/', methods=['GET'])
 def health_check():
     """Simple health check endpoint."""
@@ -624,6 +635,68 @@ def ask():
             "success": False,
             "error": str(e)
         }), 500
+
+@app.route('/api/rag-embed', methods=['POST'])
+def rag_embed():
+    """Embed documents into ChromaDB for RAG system."""
+    if not rag_retriever:
+        return jsonify({"error": "RAG system not initialized"}), 500
+    
+    try:
+        data = request.get_json()
+        documents = data.get("documents", [])
+        
+        if not documents:
+            return jsonify({"error": "No documents provided"}), 400
+        
+        rag_retriever.add_governance_documents(documents)
+        return jsonify({
+            "status": "success", 
+            "message": f"Embedded {len(documents)} documents"
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/rag-query', methods=['POST'])
+def rag_query():
+    """Query RAG system with context retrieval."""
+    if not rag_retriever:
+        return jsonify({"error": "RAG system not initialized"}), 500
+    
+    try:
+        data = request.get_json()
+        query = data.get("query", "")
+        n_results = data.get("n_results", 3)
+        
+        if not query:
+            return jsonify({"error": "No query provided"}), 400
+        
+        contexts = rag_retriever.retrieve_context(query, n_results)
+        return jsonify({
+            "status": "success",
+            "query": query,
+            "contexts": contexts
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/rag-health', methods=['GET'])
+def rag_health():
+    """Health check for RAG system components."""
+    if not rag_retriever:
+        return jsonify({"error": "RAG system not initialized"}), 500
+    
+    try:
+        health_status = rag_retriever.health_check()
+        return jsonify({
+            "status": "success",
+            "health": health_status
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 
 if __name__ == "__main__":
     # Add Flask to requirements if not already there
