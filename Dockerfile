@@ -3,9 +3,10 @@ FROM nvidia/cuda:12.1.0-base-ubuntu22.04
 # --- System setup ---
 ENV DEBIAN_FRONTEND=noninteractive
 
-RUN apt-get update && apt-get install -y \
-    curl git python3 python3-pip python3-venv unzip sudo nano wget netcat net-tools \
-    && apt-get clean
+RUN apt-get update
+RUN apt-get install -y \
+    curl git python3 python3-pip python3-venv unzip sudo nano wget netcat net-tools
+RUN apt-get clean
 
 RUN DFX_VERSION=0.27.0 DFXVM_INIT_YES=true sh -ci "$(curl -fsSL https://internetcomputer.org/install.sh)"
 
