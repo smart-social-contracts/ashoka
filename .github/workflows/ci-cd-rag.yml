@@ -5,10 +5,14 @@ on:
     branches: [ main, develop ]
   pull_request:
     branches: [ main ]
+  workflow_dispatch:
 
 jobs:
   test-rag-semantic:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     
     services:
       chromadb:
@@ -17,10 +21,10 @@ jobs:
           - 8000:8000
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v3
     
     - name: Set up Python 3.12
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v3
       with:
         python-version: '3.12'
     
@@ -95,10 +99,13 @@ jobs:
   build-and-deploy:
     needs: test-rag-semantic
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     if: github.ref == 'refs/heads/main'
     
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v3
     
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
