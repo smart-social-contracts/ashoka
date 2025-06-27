@@ -2,10 +2,15 @@ name: CI/CD RAG Testing Pipeline
 
 on:
   push:
-    branches: [ main, develop ]
+    branches-ignore: [main]
   pull_request:
     branches: [ main ]
   workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to test (test/prod)'
+        required: false
+        default: 'test'
 
 jobs:
   test-rag-semantic:
