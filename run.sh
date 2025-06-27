@@ -1,5 +1,7 @@
 #!/bin/bash
-set -e
+
+set -e # Exit on error
+set -x # Print commands
 
 # Create logs directory if it doesn't exist
 mkdir -p logs
