@@ -42,6 +42,10 @@ jobs:
         pip install -r requirements.txt
         pip install pytest pytest-cov scikit-learn numpy
         
+    - name: Install package in development mode
+      run: |
+        pip install -e .
+        
     - name: Verify critical dependencies are installed
       run: |
         python -c "import chromadb; print('ChromaDB installed successfully')"
