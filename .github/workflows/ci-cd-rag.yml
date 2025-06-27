@@ -153,6 +153,9 @@ jobs:
   deploy-staging:
     needs: build-and-deploy
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     if: github.ref == 'refs/heads/main'
     
     steps:
