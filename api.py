@@ -20,8 +20,8 @@ try:
 except ImportError:
     RAG_AVAILABLE = False
 
-TIMEOUT_SECONDS = 3600
-CHECK_INTERVAL = 60
+TIMEOUT_SECONDS = 60
+CHECK_INTERVAL = 5
 # Set up logging
 logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger("ashoka-api")
