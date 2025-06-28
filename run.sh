@@ -24,11 +24,11 @@ export DFX_WARNING=-mainnet_plaintext_identity
 
 # Set default realm ID
 export ASHOKA_REALM_ID="h5vpp-qyaaa-aaaac-qai3a-cai"
-export ASHOKA_MODEL="llama3:8b"
+export ASHOKA_DEFAULT_MODEL="llama3.2:1b"
 export ASHOKA_USE_LLM=true
 export ASHOKA_DFX_NETWORK="staging"
 echo "ASHOKA_REALM_ID=$ASHOKA_REALM_ID"
-echo "ASHOKA_MODEL=$ASHOKA_MODEL"
+echo "ASHOKA_DEFAULT_MODEL=$ASHOKA_DEFAULT_MODEL"
 echo "ASHOKA_USE_LLM=$ASHOKA_USE_LLM"
 echo "ASHOKA_DFX_NETWORK=$ASHOKA_DFX_NETWORK"
 
@@ -36,9 +36,12 @@ echo "ASHOKA_DFX_NETWORK=$ASHOKA_DFX_NETWORK"
 export OLLAMA_HOST=0.0.0.0
 export OLLAMA_HOME=/workspace/ollama
 export OLLAMA_MODELS=/workspace/ollama/models
+# Set default models to pull if not defined
+: ${OLLAMA_MODEL_LIST:=ASHOKA_DEFAULT_MODEL}
 echo "OLLAMA_HOST=$OLLAMA_HOST"
 echo "OLLAMA_HOME=$OLLAMA_HOME"
 echo "OLLAMA_MODELS=$OLLAMA_MODELS"
+echo "OLLAMA_MODEL_LIST=$OLLAMA_MODEL_LIST"
 chmod -R 777 $OLLAMA_HOME
 
 # Start Ollama in the background
@@ -54,9 +57,10 @@ echo "Ollama is up and running at http://localhost:11434"
 
 # Pull the models
 echo "Pulling models..."
-ollama pull deepseek-r1:8b
-ollama pull llama3:8b
-# ollama pull llama3.3:70b
+for model in $OLLAMA_MODEL_LIST; do
+  echo "Pulling model: $model"
+  ollama pull $model
+done
 
 # Check if requirements have been installed already
 if [ ! -f "/workspace/venv/.requirements_installed" ]; then

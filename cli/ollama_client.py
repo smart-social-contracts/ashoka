@@ -25,7 +25,7 @@ class OllamaClient:
         """Initialize the Ollama client."""
         self.api_url = api_url.rstrip("/")
         # Get model from environment variable first, then fall back to parameter or DEFAULT_MODEL
-        self.model = model or os.environ.get("ASHOKA_MODEL") or DEFAULT_MODEL
+        self.model = model or os.environ.get("ASHOKA_DEFAULT_MODEL") or DEFAULT_MODEL
         logger.info(
             f"OllamaClient initialized with URL: {api_url} and model: {self.model}"
         )
