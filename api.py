@@ -81,7 +81,7 @@ def inactivity_monitor(timeout_seconds=INACTIVITY_TIMEOUT_SECONDS, check_interva
                 runpod_id = os.environ.get('RUNPOD_POD_ID')
                 if runpod_id:
                     logger.info(f"Stopping runpod {runpod_id} using runpodctl")
-                    result = subprocess.run(['runpodctl', 'stop', runpod_id], 
+                    result = subprocess.run(['runpodctl', 'stop', 'pod', runpod_id],
                                           capture_output=True, text=True, timeout=30)
                     if result.returncode == 0:
                         logger.info("Successfully stopped runpod")
