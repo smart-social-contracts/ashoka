@@ -19,3 +19,6 @@ jobs:
 
       - name: Push Docker image
         run: docker push smartsocialcontracts/ashoka:latest
+
+      - name: Restart pod
+        run: ./restart_pod.sh
