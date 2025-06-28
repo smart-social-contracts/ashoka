@@ -20,8 +20,8 @@ try:
 except ImportError:
     RAG_AVAILABLE = False
 
-TIMEOUT_SECONDS = 120
-CHECK_INTERVAL = 10
+INACTIVITY_TIMEOUT_SECONDS = os.getenv("INACTIVITY_TIMEOUT_SECONDS", 3600)
+CHECK_INTERVAL = 60
 # Set up logging
 logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger("ashoka-api")
@@ -56,7 +56,7 @@ def update_last_request_time():
     last_request_time = time.time()
     logger.debug(f"Updated last request time: {last_request_time}")
 
-def inactivity_monitor(timeout_seconds=TIMEOUT_SECONDS, check_interval=CHECK_INTERVAL):
+def inactivity_monitor(timeout_seconds=INACTIVITY_TIMEOUT_SECONDS, check_interval=CHECK_INTERVAL):
     """
     Background thread that monitors for inactivity and shuts down the pod.
     
@@ -71,7 +71,7 @@ def inactivity_monitor(timeout_seconds=TIMEOUT_SECONDS, check_interval=CHECK_INT
         current_time = time.time()
         time_since_last_request = current_time - last_request_time
         
-        logger.debug(f"Checking inactivity: {time_since_last_request:.1f}s since last request")
+        logger.debug(f"Checking inactivity: {time_since_last_request:.1f}s since last request. We will shutdown after {timeout_seconds} seconds of inactivity.")
         
         if time_since_last_request > timeout_seconds:
             logger.info(f"No requests for {timeout_seconds} seconds. Shutting down pod.")
