@@ -49,9 +49,7 @@ def create_command(args, config):
     ollama_client = OllamaClient(args.ollama_url)
 
     # Load and send initial governance prompt
-    prompts_dir = Path(__file__).parent / "prompts"
-    with open(prompts_dir / "governor_init.txt", "r") as f:
-        governor_prompt = f.read()
+    governor_prompt = ollama_client.load_governor_prompt()
 
     logger.info(
         "Initializing AI governor with GGG knowledge. This might take some time..."
