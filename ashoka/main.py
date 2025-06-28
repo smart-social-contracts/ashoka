@@ -23,8 +23,9 @@ custom_prompt = PromptTemplate(
 
 try:
     from rag.retrieval import RAGRetriever
+
     rag_retriever = RAGRetriever(environment="prod")
-    
+
     # )
     # template = augmented_prompt
 except Exception as e:

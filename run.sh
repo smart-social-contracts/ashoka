@@ -69,9 +69,12 @@ else
     echo "Python requirements already installed, skipping installation."
 fi
 
+mkdir -p /app/chromadb_data
+chmod 777 /app/chromadb_data
+
 # Start ChromaDB server in background
 echo "Starting ChromaDB server..."
-chromadb run --host 0.0.0.0 --port 8000 --path /workspace/chromadb_data 2>&1 | tee -a logs/chromadb.log &
+python3 -c "import chromadb.cli.cli; chromadb.cli.cli.app()" run --host 0.0.0.0 --port 8000 --path /app/chromadb_data 2>&1 | tee -a logs/chromadb.log &
 CHROMADB_PID=$!
 
 echo "Waiting for ChromaDB to be ready..."

@@ -73,13 +73,13 @@ def run_command(args, config):
     # Get realm context
     logger.info("Fetching realm summary")
     realm_summary = realm.get_realm_data()
-    
+
     try:
         from rag.retrieval import RAGRetriever
+
         rag_retriever = RAGRetriever(environment="prod")
         contexts = rag_retriever.retrieve_context(
-            f"governance proposal for {realm_summary.get('name', 'realm')}", 
-            n_results=2
+            f"governance proposal for {realm_summary.get('name', 'realm')}", n_results=2
         )
         if contexts:
             realm_summary["rag_context"] = contexts
@@ -152,13 +152,13 @@ def ask_command(args, config):
     # Get realm context
     logger.info("Fetching realm summary")
     realm_summary = realm.get_realm_data()
-    
+
     try:
         from rag.retrieval import RAGRetriever
+
         rag_retriever = RAGRetriever(environment="prod")
         contexts = rag_retriever.retrieve_context(
-            f"governance proposal for {realm_summary.get('name', 'realm')}", 
-            n_results=2
+            f"governance proposal for {realm_summary.get('name', 'realm')}", n_results=2
         )
         if contexts:
             realm_summary["rag_context"] = contexts
@@ -172,11 +172,12 @@ def ask_command(args, config):
     enhanced_question = args.question
     try:
         from rag.retrieval import RAGRetriever
+
         rag_retriever = RAGRetriever(environment="prod")
         enhanced_question = rag_retriever.generate_augmented_prompt(
             original_prompt=f"answer this question: {args.question}",
             query=args.question,
-            n_contexts=2
+            n_contexts=2,
         )
     except Exception as e:
         logger.debug(f"RAG enhancement unavailable: {e}")
@@ -409,21 +410,21 @@ def benchmark_command(args, config):
 def rag_embed_command(args, config):
     """Embed governance documents into ChromaDB."""
     logger.info("Embedding governance documents...")
-    
+
     try:
         from rag.retrieval import RAGRetriever
-        
+
         rag_retriever = RAGRetriever(environment=args.environment)
-        
+
         documents = []
         with open(args.documents, "r") as f:
             for line in f:
                 doc = json.loads(line.strip())
                 documents.append(doc)
-        
+
         rag_retriever.add_governance_documents(documents)
         logger.info(f"Successfully embedded {len(documents)} documents")
-        
+
     except Exception as e:
         logger.error(f"Failed to embed documents: {e}")
         sys.exit(1)
@@ -531,11 +532,15 @@ def main():
         "rag-embed", help="Embed governance documents into ChromaDB"
     )
     parser_rag_embed.add_argument(
-        "--documents", required=True, help="Path to JSONL file with governance documents"
+        "--documents",
+        required=True,
+        help="Path to JSONL file with governance documents",
     )
     parser_rag_embed.add_argument(
-        "--environment", default="prod", choices=["test", "prod"], 
-        help="ChromaDB environment (test or prod)"
+        "--environment",
+        default="prod",
+        choices=["test", "prod"],
+        help="ChromaDB environment (test or prod)",
     )
 
     args = parser.parse_args()
