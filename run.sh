@@ -12,7 +12,7 @@ mkdir -p /workspace/venv
 mkdir -p /workspace/chromadb_data
 
 # Setup Python virtual environment in the persistent volume
-if [ ! -d "/workspace/venv" ]; then
+if [ ! -d "/workspace/venv/bin/activate" ]; then
     echo "Creating new virtual environment in /workspace/venv..."
     python3 -m venv /workspace/venv
 fi
