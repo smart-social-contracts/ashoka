@@ -24,7 +24,7 @@ export DFX_WARNING=-mainnet_plaintext_identity
 
 # Set default realm ID
 export ASHOKA_USE_LLM=true
-export ASHOKA_DFX_NETWORK="staging"
+export ASHOKA_DFX_NETWORK="ic"
 echo "ASHOKA_REALM_ID=$ASHOKA_REALM_ID"
 echo "ASHOKA_DEFAULT_MODEL=$ASHOKA_DEFAULT_MODEL"
 echo "ASHOKA_USE_LLM=$ASHOKA_USE_LLM"

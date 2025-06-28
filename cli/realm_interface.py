@@ -49,11 +49,10 @@ def get_current_principal():
 class RealmInterface:
     """Interface for interacting with GGG-compliant realm canisters."""
 
-    def __init__(self, canister_id: str, network_url: str = "https://ic0.app"):
+    def __init__(self, canister_id: str, network: str = "ic"):
         """Initialize the realm interface."""
         self.canister_id = canister_id
 
-        # Get network from environment variable if set, otherwise use the provided network_url
         network = os.environ.get("ASHOKA_DFX_NETWORK")
         if network:
             self.network_param = f"--network {network}"
