@@ -494,7 +494,11 @@ def handle_streaming_ask(realm_canister_id, question, ollama_url):
             
             ollama_client = OllamaClient(ollama_url)
             
-            response = ollama_client.send_prompt_streaming(question)
+            governor_prompt = ollama_client.load_governor_prompt()
+            
+            combined_prompt = f"{governor_prompt}\n\nUser Question: {question}\n\nPlease respond as Ashoka:"
+            
+            response = ollama_client.send_prompt_streaming(combined_prompt)
             
             for line in response.iter_lines(decode_unicode=True):
                 if line:

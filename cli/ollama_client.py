@@ -195,3 +195,17 @@ class OllamaClient:
                         fixed = '{"title":"Sanitized Proposal","content":"Content was unparseable"}'
 
         return fixed
+
+    def load_governor_prompt(self) -> str:
+        """Load the governor initialization prompt."""
+        from pathlib import Path
+
+        prompts_dir = Path(__file__).parent / "prompts"
+        governor_prompt_path = prompts_dir / "governor_init.txt"
+
+        if governor_prompt_path.exists():
+            with open(governor_prompt_path, "r") as f:
+                return f.read()
+        else:
+            logger.warning("Governor prompt file not found, using fallback")
+            return "You are Ashoka, an AI governor designed to improve decentralized governance systems."
