@@ -23,8 +23,6 @@ source /workspace/venv/bin/activate
 export DFX_WARNING=-mainnet_plaintext_identity
 
 # Set default realm ID
-export ASHOKA_REALM_ID="h5vpp-qyaaa-aaaac-qai3a-cai"
-export ASHOKA_DEFAULT_MODEL="llama3.2:1b"
 export ASHOKA_USE_LLM=true
 export ASHOKA_DFX_NETWORK="staging"
 echo "ASHOKA_REALM_ID=$ASHOKA_REALM_ID"
