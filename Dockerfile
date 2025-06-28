@@ -3,9 +3,10 @@ FROM nvidia/cuda:12.1.0-base-ubuntu22.04
 # --- System setup ---
 ENV DEBIAN_FRONTEND=noninteractive
 
-RUN apt-get update && apt-get install -y \
-    curl git python3 python3-pip unzip sudo nano wget netcat net-tools \
-    && apt-get clean
+RUN apt-get update
+RUN apt-get install -y \
+    curl git python3 python3-pip python3-venv unzip sudo nano wget netcat net-tools
+RUN apt-get clean
 
 RUN DFX_VERSION=0.27.0 DFXVM_INIT_YES=true sh -ci "$(curl -fsSL https://internetcomputer.org/install.sh)"
 
@@ -26,11 +27,12 @@ RUN git clone https://github.com/smart-social-contracts/ashoka.git
 # --- Python environment ---
 WORKDIR /app/ashoka
 
-# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+# Create initial directories that will be mirrored in the persistent volume
+RUN mkdir -p /workspace/venv
+RUN mkdir -p /workspace/chromadb_data
 
-# Create ChromaDB data directory
-RUN mkdir -p /app/chromadb_data
+# Note: Python dependencies will be installed by run.sh into the persistent volume
+# This prevents duplicate installations and allows for faster container restarts
 
 EXPOSE 11434
 EXPOSE 5000 8000

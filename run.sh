@@ -1,5 +1,25 @@
 #!/bin/bash
 
+set -e # Exit on error
+set -x # Print commands
+
+# Create logs directory if it doesn't exist
+mkdir -p logs
+
+# Create workspace directories if they don't exist
+mkdir -p /workspace/ollama
+mkdir -p /workspace/venv
+mkdir -p /workspace/chromadb_data
+
+# Setup Python virtual environment in the persistent volume
+if [ ! -d "/workspace/venv/bin/activate" ]; then
+    echo "Creating new virtual environment in /workspace/venv..."
+    python3 -m venv /workspace/venv
+fi
+
+# Activate the virtual environment
+source /workspace/venv/bin/activate
+
 export DFX_WARNING=-mainnet_plaintext_identity
 
 # Set default realm ID
@@ -21,9 +41,6 @@ echo "OLLAMA_HOME=$OLLAMA_HOME"
 echo "OLLAMA_MODELS=$OLLAMA_MODELS"
 chmod -R 777 $OLLAMA_HOME
 
-# Create logs directory
-mkdir -p logs
-
 # Start Ollama in the background
 ollama serve 2>&1 | tee -a logs/ollama.log &
 
@@ -41,8 +58,16 @@ ollama pull deepseek-r1:8b
 ollama pull llama3:8b
 # ollama pull llama3.3:70b
 
-pip3 install --upgrade pip
-pip3 install -r requirements.txt
+# Check if requirements have been installed already
+if [ ! -f "/workspace/venv/.requirements_installed" ]; then
+    echo "Installing Python requirements..."
+    pip3 install --upgrade pip
+    pip3 install -r requirements.txt
+    # Create a flag file to indicate requirements are installed
+    touch /workspace/venv/.requirements_installed
+else
+    echo "Python requirements already installed, skipping installation."
+fi
 
 mkdir -p /app/chromadb_data
 chmod 777 /app/chromadb_data
