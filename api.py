@@ -20,7 +20,7 @@ try:
 except ImportError:
     RAG_AVAILABLE = False
 
-INACTIVITY_TIMEOUT_SECONDS = os.getenv("INACTIVITY_TIMEOUT_SECONDS", 3600)
+INACTIVITY_TIMEOUT_SECONDS = int(os.getenv("INACTIVITY_TIMEOUT_SECONDS", 3600))
 CHECK_INTERVAL = 60
 # Set up logging
 logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
