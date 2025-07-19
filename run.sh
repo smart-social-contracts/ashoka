@@ -35,7 +35,7 @@ export OLLAMA_HOST=0.0.0.0
 export OLLAMA_HOME=/workspace/ollama
 export OLLAMA_MODELS=/workspace/ollama/models
 # Set default models to pull if not defined
-: ${OLLAMA_MODEL_LIST:=ASHOKA_DEFAULT_MODEL}
+: ${OLLAMA_MODEL_LIST:=$ASHOKA_DEFAULT_MODEL}
 echo "OLLAMA_HOST=$OLLAMA_HOST"
 echo "OLLAMA_HOME=$OLLAMA_HOME"
 echo "OLLAMA_MODELS=$OLLAMA_MODELS"

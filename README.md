@@ -9,12 +9,11 @@ An off-chain AI governor for GGG-compliant realms on the Internet Computer.
 docker run \
   --name ashoka-container \
   -v $(pwd)/workspace:/workspace \
-  -p 11434:11434 \
   -p 5000:5000 \
   -p 22:22 \
   -p 443:443 \
   --shm-size=20g \
-  docker.io/smartsocialcontracts/ashoka:latest
+  smartsocialcontracts/ashoka:latest
 ```
 
 ## Overview
