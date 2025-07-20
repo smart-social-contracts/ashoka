@@ -105,8 +105,60 @@ jobs:
       run: |
         python test_semantic_similarity.py
 
+  comprehensive-ci-test:
+    runs-on: ubuntu-latest
+    needs: [test-rag-semantic]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Build and run comprehensive CI tests
+      run: |
+        # Build the Docker image with all dependencies
+        docker build -t ashoka:ci .
+        
+        # Run all tests in the container
+        docker run --rm \
+          -e ASHOKA_DEFAULT_MODEL="llama3.2:1b" \
+          -e RUN_RAG_TESTS="true" \
+          -e RUN_OLLAMA_TESTS="true" \
+          -e RUN_GOVERNANCE_TESTS="true" \
+          -e SKIP_MODEL_DOWNLOAD="false" \
+          --shm-size=2g \
+          ashoka:ci
+
+  # RunPod Dual-Pod CI Testing (Advanced)
+  runpod-dual-ci-test:
+    runs-on: ubuntu-latest
+    needs: [test-rag-semantic]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y jq
+    
+    - name: Make RunPod dual manager script executable
+      run: chmod +x scripts/runpod_dual_manager.sh
+    
+    - name: Run CI tests on dedicated RunPod CI pod
+      env:
+        RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+        RUNPOD_TEMPLATE_ID: ${{ vars.RUNPOD_TEMPLATE_ID || 'runpod/pytorch:2.1.0-py3.10-cuda12.1.0-devel-ubuntu22.04' }}
+        RUNPOD_GPU_TYPE: ${{ vars.RUNPOD_GPU_TYPE || 'NVIDIA GeForce RTX 4090' }}
+      run: |
+        # Run CI tests on dedicated RunPod CI pod
+        # This will create a CI pod, run tests, and clean up automatically
+        ./scripts/runpod_dual_manager.sh ci
+        echo "Docker-based CI tests completed successfully!"
+
   build-and-deploy:
-    needs: test-rag-semantic
+    needs: test-docker-comprehensive
     runs-on: ubuntu-latest
     permissions:
       contents: read
