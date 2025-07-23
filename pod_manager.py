@@ -468,33 +468,41 @@ class PodManager:
             
             gpu_types = response.get('data', {}).get('gpuTypes', [])
             
-            # Get max price from configuration
+            # Filter GPUs by price threshold
             max_price = float(self.config.get('MAX_GPU_PRICE', '0.30'))
+            affordable_gpus = []
             
-            # Filter GPUs: available and under max price (check both community and secure pricing)
-            cheap_gpus = []
             for gpu in gpu_types:
                 community_price = gpu.get('communitySpotPrice')
                 secure_price = gpu.get('secureSpotPrice')
                 
-                # Include GPU if either price is available and under threshold
-                if (community_price is not None and community_price < max_price) or (secure_price is not None and secure_price < max_price):
-                    cheap_gpus.append(gpu)
+                # Get the minimum available price (prefer community over secure)
+                min_price = None
+                if community_price is not None:
+                    min_price = community_price
+                elif secure_price is not None:
+                    min_price = secure_price
+                
+                if min_price is not None and min_price <= max_price:
+                    affordable_gpus.append({
+                        'id': gpu['id'],
+                        'name': gpu['displayName'],
+                        'price': min_price
+                    })
             
-            if not cheap_gpus:
-                self._print(f"❌ No available GPUs under ${max_price:.2f}/hr found", force=True)
+            if not affordable_gpus:
+                self._print(f"❌ No GPUs found under ${max_price}/hr", force=True)
                 return False
             
-            # Select cheapest GPU (prefer community pricing, fallback to secure)
-            def get_best_price(gpu):
-                community = gpu.get('communitySpotPrice') or 999
-                secure = gpu.get('secureSpotPrice') or 999
-                return min(community, secure)
+            # Sort by price (cheapest first)
+            affordable_gpus.sort(key=lambda x: x['price'])
             
-            selected_gpu = min(cheap_gpus, key=get_best_price)
-            best_price = get_best_price(selected_gpu)
+            # Use multiple GPU types to increase chances of finding available pods
+            gpu_type_ids = [gpu['id'] for gpu in affordable_gpus[:5]]  # Use top 5 cheapest
             
-            self._print(f"Selected GPU: {selected_gpu['displayName']} - ${best_price:.3f}/hr")
+            self._print(f"Trying {len(gpu_type_ids)} GPU types (cheapest first):")
+            for i, gpu in enumerate(affordable_gpus[:5]):
+                self._print(f"  {i+1}. {gpu['name']} - ${gpu['price']:.3f}/hr")
             
             # Get volume ID based on pod type
             if pod_type == "main":
@@ -506,13 +514,10 @@ class PodManager:
             pod_data = {
                 "name": f"ashoka-{pod_type}-{int(time.time())}",
                 "imageName": self.config.get('IMAGE_NAME', 'docker.io/smartsocialcontracts/ashoka:latest'),
-                "gpuTypeIds": [selected_gpu['id']],  # Changed to plural array
+                "gpuTypeIds": gpu_type_ids,
                 "gpuCount": 1,
-                # "volumeInGb": 0,
                 "containerDiskInGb": int(self.config.get('CONTAINER_DISK', '20')),
-                "networkVolumeId": volume_id,
-                # "cloudType": "SECURE"
-                # Removed dockerArgs and dataCenterId as they're not in the current schema
+                "networkVolumeId": volume_id
             }
             
             # Make REST API request to create pod
@@ -521,52 +526,48 @@ class PodManager:
                 'Content-Type': 'application/json'
             }
             
-            try:
-                response = requests.post(
-                    'https://rest.runpod.io/v1/pods',
-                    json=pod_data,
-                    headers=headers,
-                    timeout=30
-                )
+            response = requests.post(
+                'https://api.runpod.io/v2/pods',
+                json=pod_data,
+                headers=headers,
+                timeout=30
+            )
+            
+            # Log request and response for debugging
+            self._log_request_response('POST', 'https://api.runpod.io/v2/pods', headers, pod_data, response)
+            
+            if response.status_code == 200:
+                result = response.json()
+                pod_id = result.get('id')
                 
-                # Log request and response for debugging
-                self._log_request_response('POST', 'https://rest.runpod.io/v1/pods', headers, pod_data, response)
-                
-                if response.status_code == 200:
-                    result = response.json()
-                    pod_id = result.get('id')
+                if pod_id:
+                    self._print(f"✅ Pod created successfully!")
+                    self._print(f"Pod ID: {pod_id}")
                     
-                    if pod_id:
-                        self._print(f"✅ Pod created successfully!")
-                        self._print(f"Pod ID: {pod_id}")
-                        
-                        # Generate pod URL
-                        pod_url = f"https://{pod_id}-5000.proxy.runpod.net"
-                        self._print(f"Pod URL: {pod_url}")
-                        
-                        if not self.verbose:
-                            print(pod_id)
-                        
-                        return True
-                    else:
-                        self._print(f"❌ Pod creation failed: No pod ID in response", force=True)
-                        return False
+                    # Generate pod URL
+                    pod_url = f"https://{pod_id}-5000.proxy.runpod.net"
+                    self._print(f"Pod URL: {pod_url}")
+                    
+                    if not self.verbose:
+                        print(pod_id)
+                    
+                    return True
                 else:
-                    self._print(f"❌ Pod creation failed: {response.status_code}", force=True)
-                    # Show response details for debugging
-                    try:
-                        error_response = response.json()
-                        self._print(f"Error response: {error_response}", force=True)
-                    except:
-                        self._print(f"Error response text: {response.text}", force=True)
+                    self._print(f"❌ Pod creation failed: No pod ID in response", force=True)
                     return False
-                    
-            except requests.RequestException as e:
-                self._print(f"❌ Pod creation request failed: {e}", force=True)
+            else:
+                self._print(f"❌ Pod creation failed: {response.status_code}", force=True)
+                # Show response details for debugging
+                try:
+                    error_response = response.json()
+                    self._print(f"Error response: {error_response}", force=True)
+                except:
+                    self._print(f"Error response text: {response.text}", force=True)
                 return False
-            
-            return True
-            
+                
+        except requests.RequestException as e:
+            self._print(f"❌ Pod creation request failed: {e}", force=True)
+            return False
         except Exception as e:
             self._print(f"❌ Deployment failed: {e}", force=True)
             traceback.print_exc()
