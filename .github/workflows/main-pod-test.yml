@@ -9,6 +9,8 @@ on:
 jobs:
   test-main-pod:
     runs-on: ubuntu-latest
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
     
     steps:
       - name: Checkout repository
@@ -22,15 +24,10 @@ jobs:
       - name: Install dependencies
         run: pip install requests runpod
 
-      - name: Set RunPod API key
-        run: echo "RUNPOD_API_KEY=${{ secrets.RUNPOD_API_KEY }}" >> $GITHUB_ENV
-
-      - name: Ensure main pod is running
-        run: ./pod_manager.py main start --deploy-new-if-needed --verbose
-
       - name: Get pod URL and test Flask server
         run: |
-          # Get the pod URL dynamically from the pod manager
+          ./pod_manager.py main start --deploy-new-if-needed --verbose
+          
           POD_URL=$(./pod_manager.py main status --verbose 2>&1 | grep "Server Host:" | awk '{print "https://" $3}' || echo "")
           if [ -z "$POD_URL" ]; then
             echo "❌ Could not determine pod URL"
@@ -38,10 +35,8 @@ jobs:
           fi
           echo "🔍 Testing pod at: $POD_URL"
           
-          # Wait for pod to be ready
           sleep 45
           
-          # Test the Flask server
           curl -f --max-time 15 "$POD_URL/health" || curl -f --max-time 15 "$POD_URL/"
 
       - name: Stop main pod
