@@ -27,20 +27,30 @@ jobs:
           python-version: '3.x'
 
       - name: Install dependencies
-        run: pip install requests
+        run: pip install requests runpod
 
       - name: Set RunPod API key
         run: echo "RUNPOD_API_KEY=${{ secrets.RUNPOD_API_KEY }}" >> $GITHUB_ENV
 
       - name: Start branch pod
-        run: ./pod_manager.py branch start --verbose
+        run: ./pod_manager.py branch start --deploy-new-if-needed --verbose
 
-      - name: Test Flask server
+      - name: Get pod URL and test Flask server
         run: |
-          source ./env
-          sleep 30
-          curl -f --max-time 10 "https://$SERVER_HOST_BRANCH/health" || curl -f "https://$SERVER_HOST_BRANCH/"
+          # Get the pod URL dynamically from the pod manager
+          POD_URL=$(./pod_manager.py branch status --verbose 2>&1 | grep "Server Host:" | awk '{print "https://" $3}' || echo "")
+          if [ -z "$POD_URL" ]; then
+            echo "❌ Could not determine pod URL"
+            exit 1
+          fi
+          echo "🔍 Testing pod at: $POD_URL"
+          
+          # Wait for pod to be ready
+          sleep 45
+          
+          # Test the Flask server
+          curl -f --max-time 15 "$POD_URL/health" || curl -f --max-time 15 "$POD_URL/"
 
       - name: Stop branch pod
         if: always()
-        run: ./pod_manager.py branch stop
+        run: ./pod_manager.py branch stop --verbose
