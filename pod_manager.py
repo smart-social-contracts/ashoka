@@ -43,7 +43,7 @@ class PodManager:
                         config[key.strip()] = value.strip()
         
         # Set basic defaults
-        config.setdefault('MAX_GPU_PRICE', '0.40')
+        config.setdefault('MAX_GPU_PRICE', '0.30')
         config.setdefault('TEMPLATE_ID', 'ashoka1')
         
         # Set fallback defaults for template-based deployment
@@ -72,12 +72,46 @@ class PodManager:
         
         raise ValueError("RUNPOD_API_KEY not found in environment or production.env")
     
+    def _find_pod_by_type(self, pod_type: str) -> tuple[str, str]:
+        """Find existing pod by type, returns (pod_id, server_host) or (None, None) if not found"""
+        try:
+            # Get all pods
+            pods = runpod.get_pods()
+            if self.verbose:
+                self._print(f"🔍 Found {len(pods)} total pods")
+            
+            # Look for pods with the naming pattern ashoka-{pod_type}-*
+            pod_name_prefix = f"ashoka-{pod_type}-"
+            
+            for pod in pods:
+                pod_name = pod.get('name', '')
+                if pod_name.startswith(pod_name_prefix):
+                    pod_id = pod.get('id')
+                    if pod_id:
+                        server_host = f"{pod_id}-5000.proxy.runpod.net"
+                        if self.verbose:
+                            self._print(f"✅ Found {pod_type} pod: {pod_name} (ID: {pod_id})")
+                        return pod_id, server_host
+            
+            if self.verbose:
+                self._print(f"❌ No {pod_type} pod found with prefix '{pod_name_prefix}'")
+            return None, None
+            
+        except Exception as e:
+            self._print(f"❌ Error finding pod: {e}", force=True)
+            return None, None
+    
     def _get_server_host(self, pod_type: str) -> str:
-        """Get server host based on pod type"""
-        if pod_type == "main":
-            return self.config.get('SERVER_HOST_MAIN', 'default-main-host')
+        """Get server host based on pod type - now uses dynamic pod discovery"""
+        pod_id, server_host = self._find_pod_by_type(pod_type)
+        if server_host:
+            return server_host
         else:
-            return self.config.get('SERVER_HOST_BRANCH', 'default-branch-host')
+            # Fallback to environment variables if no pod found
+            if pod_type == "main":
+                return self.config.get('SERVER_HOST_MAIN', 'default-main-host')
+            else:
+                return self.config.get('SERVER_HOST_BRANCH', 'default-branch-host')
     
     def _extract_pod_id(self, server_host: str) -> str:
         """Extract pod ID from server host"""
@@ -130,8 +164,16 @@ class PodManager:
         """Start a pod using RunPod SDK"""
         self._print(f"Starting {pod_type} pod...")
         
-        server_host = self._get_server_host(pod_type)
-        pod_id = self._extract_pod_id(server_host)
+        # Find existing pod by name pattern
+        pod_id, server_host = self._find_pod_by_type(pod_type)
+        
+        if not pod_id:
+            self._print(f"❌ No {pod_type} pod found")
+            if deploy_new_if_needed:
+                self._print("Pod not found, attempting to deploy a new pod...")
+                return self.deploy_pod(pod_type)
+            else:
+                return False
         
         self._print(f"Pod ID: {pod_id}")
         self._print(f"Server Host: {server_host}")
@@ -186,8 +228,12 @@ class PodManager:
         """Stop a pod using RunPod SDK"""
         self._print(f"Stopping {pod_type} pod...")
         
-        server_host = self._get_server_host(pod_type)
-        pod_id = self._extract_pod_id(server_host)
+        # Find existing pod by name pattern
+        pod_id, server_host = self._find_pod_by_type(pod_type)
+        
+        if not pod_id:
+            self._print(f"❌ No {pod_type} pod found")
+            return False
         
         self._print(f"Pod ID: {pod_id}")
         self._print(f"Server Host: {server_host}")
@@ -243,8 +289,12 @@ class PodManager:
     
     def status_pod(self, pod_type: str) -> bool:
         """Get pod status"""
-        server_host = self._get_server_host(pod_type)
-        pod_id = self._extract_pod_id(server_host)
+        # Find existing pod by name pattern
+        pod_id, server_host = self._find_pod_by_type(pod_type)
+        
+        if not pod_id:
+            self._print(f"❌ No {pod_type} pod found")
+            return False
         
         self._print(f"Pod Type: {pod_type}")
         self._print(f"Pod ID: {pod_id}")
@@ -399,14 +449,13 @@ class PodManager:
                         
                 except Exception as gpu_error:
                     error_msg = str(gpu_error)
+                    print('Error: ' + error_msg)
                     if "no longer any instances available" in error_msg.lower():
                         self._print(f"⚠️ {selected_gpu['name']} not available, trying next GPU...")
                     elif "insufficient funds" in error_msg.lower():
                         self._print(f"⚠️ Insufficient funds for {selected_gpu['name']}, trying next GPU...")
                     else:
                         self._print(f"⚠️ Error with {selected_gpu['name']}: {error_msg}")
-                        if self.verbose:
-                            self._print(f"Full error: {gpu_error}")
                     
                     # Continue to next GPU
                     continue
@@ -425,8 +474,12 @@ class PodManager:
         self._print(f"Terminating {pod_type} pod...")
         
         try:
-            server_host = self._get_server_host(pod_type)
-            pod_id = self._extract_pod_id(server_host)
+            # Find existing pod by name pattern
+            pod_id, server_host = self._find_pod_by_type(pod_type)
+            
+            if not pod_id:
+                self._print(f"❌ No {pod_type} pod found")
+                return False
             
             self._print(f"Pod ID: {pod_id}")
             self._print(f"Server Host: {server_host}")
