@@ -189,7 +189,7 @@ class PodManager:
         # Start the pod using RunPod SDK
         self._print(f"Starting pod {pod_id}...")
         try:
-            result = runpod.start_pod(pod_id)
+            result = runpod.resume_pod(pod_id=pod_id, gpu_count=1)
             if self.verbose:
                 self._print(f"🔍 Start result: {result}")
             
