@@ -506,14 +506,13 @@ class PodManager:
             pod_data = {
                 "name": f"ashoka-{pod_type}-{int(time.time())}",
                 "imageName": self.config.get('IMAGE_NAME', 'docker.io/smartsocialcontracts/ashoka:latest'),
-                "gpuTypeId": selected_gpu['id'],
+                "gpuTypeIds": [selected_gpu['id']],  # Changed to plural array
                 "gpuCount": 1,
-                "volumeInGb": 0,
+                # "volumeInGb": 0,
                 "containerDiskInGb": int(self.config.get('CONTAINER_DISK', '20')),
                 "networkVolumeId": volume_id,
-                "cloudType": "SECURE",
-                "dockerArgs": self.config.get('START_COMMAND', ''),
-                "dataCenterId": None
+                # "cloudType": "SECURE"
+                # Removed dockerArgs and dataCenterId as they're not in the current schema
             }
             
             # Make REST API request to create pod
@@ -524,14 +523,14 @@ class PodManager:
             
             try:
                 response = requests.post(
-                    'https://api.runpod.io/v2/pod',
+                    'https://rest.runpod.io/v1/pods',
                     json=pod_data,
                     headers=headers,
                     timeout=30
                 )
                 
                 # Log request and response for debugging
-                self._log_request_response('POST', 'https://api.runpod.io/v2/pod', headers, pod_data, response)
+                self._log_request_response('POST', 'https://rest.runpod.io/v1/pods', headers, pod_data, response)
                 
                 if response.status_code == 200:
                     result = response.json()
