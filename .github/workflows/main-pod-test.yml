@@ -14,65 +14,22 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set RunPod API key
-        run: |
-          echo "RUNPOD_API_KEY=${{ secrets.RUNPOD_API_KEY }}" >> $GITHUB_ENV
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
 
-      - name: Make pod scripts executable
-        run: |
-          chmod +x ./start_pod.sh
-          chmod +x ./stop_pod.sh
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Set RunPod API key
+        run: echo "RUNPOD_API_KEY=${{ secrets.RUNPOD_API_KEY }}" >> $GITHUB_ENV
 
       - name: Ensure main pod is running
-        run: |
-          echo "Ensuring main pod is running..."
-          ./start_pod.sh main
+        run: ./pod_manager.py main start --verbose
 
-      - name: Wait for pod to be ready
+      - name: Test Flask server
         run: |
-          echo "Waiting for pod to be fully ready..."
+          source ./env
           sleep 30
-
-      - name: Test Flask server status
-        run: |
-          source ./env
-          SERVER_HOST=$SERVER_HOST_MAIN
-          echo "Checking Flask server status at: https://$SERVER_HOST"
-          
-          # Try to reach the server with retries
-          max_attempts=10
-          attempt=1
-          
-          while [ $attempt -le $max_attempts ]; do
-            echo "Attempt $attempt/$max_attempts: Checking server status..."
-            
-            if curl -f -s --max-time 10 "https://$SERVER_HOST/health" > /dev/null 2>&1; then
-              echo "✅ Main Flask server is responding!"
-              
-              # Get detailed status
-              echo "Server response:"
-              curl -s "https://$SERVER_HOST/health" || echo "Health endpoint not available, trying root..."
-              curl -s "https://$SERVER_HOST/" | head -20 || echo "Root endpoint not available"
-              
-              exit 0
-            else
-              echo "❌ Server not responding yet..."
-              if [ $attempt -eq $max_attempts ]; then
-                echo "🚨 Main server failed to respond after $max_attempts attempts"
-                exit 1
-              fi
-              sleep 15
-            fi
-            
-            attempt=$((attempt + 1))
-          done
-
-      - name: Report final status
-        if: always()
-        run: |
-          source ./env
-          echo "=== Main Pod Status Report ==="
-          echo "Branch: ${{ github.ref_name }}"
-          echo "Server Host: $SERVER_HOST_MAIN"
-          echo "Pod Status: Main pod should remain running"
-          echo "Workflow completed at: $(date)"
+          curl -f --max-time 10 "https://$SERVER_HOST_MAIN/health" || curl -f "https://$SERVER_HOST_MAIN/"

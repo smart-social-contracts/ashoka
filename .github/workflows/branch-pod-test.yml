@@ -21,98 +21,26 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set RunPod API key
-        run: |
-          echo "RUNPOD_API_KEY=${{ secrets.RUNPOD_API_KEY }}" >> $GITHUB_ENV
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
 
-      - name: Make pod scripts executable
-        run: |
-          chmod +x ./start_pod.sh
-          chmod +x ./stop_pod.sh
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Set RunPod API key
+        run: echo "RUNPOD_API_KEY=${{ secrets.RUNPOD_API_KEY }}" >> $GITHUB_ENV
 
       - name: Start branch pod
-        run: |
-          echo "Starting branch pod for testing..."
-          ./start_pod.sh branch
+        run: ./pod_manager.py branch start --verbose
 
-      - name: Wait for pod to be ready
-        run: |
-          echo "Waiting for pod to be fully ready..."
-          sleep 30
-
-      - name: Run Flask server tests
-        id: server-test
+      - name: Test Flask server
         run: |
           source ./env
-          SERVER_HOST=$SERVER_HOST_BRANCH
-          echo "Testing Flask server at: https://$SERVER_HOST"
-          
-          # Try to reach the server with retries
-          max_attempts=10
-          attempt=1
-          test_passed=false
-          
-          while [ $attempt -le $max_attempts ]; do
-            echo "Test attempt $attempt/$max_attempts: Checking server status..."
-            
-            if curl -f -s --max-time 10 "https://$SERVER_HOST/health" > /dev/null 2>&1; then
-              echo "✅ Branch Flask server is responding!"
-              
-              # Get detailed status
-              echo "Server response:"
-              curl -s "https://$SERVER_HOST/health" || echo "Health endpoint not available, trying root..."
-              curl -s "https://$SERVER_HOST/" | head -20 || echo "Root endpoint not available"
-              
-              test_passed=true
-              break
-            else
-              echo "❌ Server not responding yet..."
-              if [ $attempt -eq $max_attempts ]; then
-                echo "🚨 Branch server failed to respond after $max_attempts attempts"
-                test_passed=false
-                break
-              fi
-              sleep 15
-            fi
-            
-            attempt=$((attempt + 1))
-          done
-          
-          if [ "$test_passed" = true ]; then
-            echo "TEST_RESULT=passed" >> $GITHUB_ENV
-            echo "✅ All tests passed!"
-          else
-            echo "TEST_RESULT=failed" >> $GITHUB_ENV
-            echo "❌ Tests failed!"
-          fi
-
-      - name: Run additional tests (if any)
-        if: env.TEST_RESULT == 'passed'
-        run: |
-          echo "Running additional application tests..."
-          # Add any additional tests here
-          # For example: python -m pytest tests/
-          echo "Additional tests completed"
+          sleep 30
+          curl -f --max-time 10 "https://$SERVER_HOST_BRANCH/health" || curl -f "https://$SERVER_HOST_BRANCH/"
 
       - name: Stop branch pod
         if: always()
-        run: |
-          echo "Stopping branch pod after testing..."
-          ./stop_pod.sh branch
-
-      - name: Report final status
-        if: always()
-        run: |
-          source ./env
-          echo "=== Branch Pod Test Report ==="
-          echo "Branch: ${{ github.ref_name }}"
-          echo "Server Host: $SERVER_HOST_BRANCH"
-          echo "Test Result: $TEST_RESULT"
-          echo "Pod Status: Stopped after testing"
-          echo "Workflow completed at: $(date)"
-
-      - name: Fail workflow if tests failed
-        if: env.TEST_RESULT == 'failed'
-        run: |
-          echo "❌ Workflow failed due to test failures"
-          exit 1
+        run: ./pod_manager.py branch stop
