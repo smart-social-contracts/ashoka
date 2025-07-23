@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-RunPod Manager - A Python CLI tool for managing RunPod instances
+RunPod Manager - A Python CLI tool for managing RunPod instances using the official RunPod SDK
 Usage: pod_manager.py <pod_type> <action>
 Examples:
     pod_manager.py main start
@@ -11,21 +11,23 @@ Examples:
 import os
 import sys
 import time
-import traceback
 import json
-import requests
 import argparse
+import traceback
+import runpod
 from pathlib import Path
-from typing import Dict, Optional, Tuple
+from typing import Dict, Optional, List, Any
 
 
 class PodManager:
     def __init__(self, verbose: bool = False):
         self.script_dir = Path(__file__).parent
-        self.api_base = "https://rest.runpod.io/v1/pods"
         self.verbose = verbose
         self.api_key = self._get_api_key()
         self.config = self._load_config()
+        
+        # Initialize RunPod SDK
+        runpod.api_key = self.api_key
         
     def _load_config(self) -> Dict[str, str]:
         """Load configuration from env file"""
@@ -41,62 +43,16 @@ class PodManager:
                         config[key.strip()] = value.strip()
         
         # Set basic defaults
-        config.setdefault('MAX_GPU_PRICE', '0.30')
+        config.setdefault('MAX_GPU_PRICE', '0.40')
         config.setdefault('TEMPLATE_ID', 'ashoka1')
         
         # Set fallback defaults for template-based deployment
         config.setdefault('CONTAINER_DISK', '20')
         config.setdefault('IMAGE_NAME', 'docker.io/smartsocialcontracts/ashoka:latest')
-        config.setdefault('START_COMMAND', '')
         config.setdefault('VOLUME_ID_MAIN', '74qwk1f72z9')  # ashoka1_main_volume
         config.setdefault('VOLUME_ID_BRANCH', 'ipy89pj504')  # ashoka1_branch_volume
         
-        # Template fetching disabled for now - using fallback configuration
-        # TODO: Fix GraphQL template query later
-        if self.verbose:
-            self._print(f"Using fallback configuration for template {config.get('TEMPLATE_ID', 'ashoka1')}")
-        
         return config
-    
-    def _get_template_config(self, template_id: str) -> Dict[str, str]:
-        """Fetch template configuration from RunPod API"""
-        try:
-            # Query to get template details
-            query = """
-            query getTemplate($templateId: String!) {
-                template(id: $templateId) {
-                    id
-                    name
-                    containerDiskInGb
-                    dockerArgs
-                    imageName
-                    volumeInGb
-                    volumeMountPath
-                    networkVolumeId
-                }
-            }
-            """
-            
-            variables = {"templateId": template_id}
-            response = self._make_graphql_request(query, variables)
-            
-            if response and 'data' in response and response['data']['template']:
-                template = response['data']['template']
-                return {
-                    'CONTAINER_DISK': str(template.get('containerDiskInGb', '20')),
-                    'IMAGE_NAME': template.get('imageName', 'docker.io/smartsocialcontracts/ashoka:latest'),
-                    'START_COMMAND': template.get('dockerArgs', ''),
-                    'VOLUME_ID': template.get('networkVolumeId', ''),
-                    'VOLUME_SIZE': str(template.get('volumeInGb', '300')),
-                    'VOLUME_MOUNT_PATH': template.get('volumeMountPath', '/workspace')
-                }
-            else:
-                self._print(f"⚠️  Could not fetch template {template_id}, using defaults", force=True)
-                return {}
-                
-        except Exception as e:
-            self._print(f"⚠️  Error fetching template config: {e}", force=True)
-            return {}
     
     def _get_api_key(self) -> str:
         """Get RunPod API key from environment or production.env"""
@@ -114,163 +70,64 @@ class PodManager:
                     if line.startswith('RUNPOD_API_KEY='):
                         return line.split('=', 1)[1].strip()
         
-        raise ValueError("RUNPOD_API_KEY not found in environment or production.env file. Please set RUNPOD_API_KEY environment variable or add it to production.env")
+        raise ValueError("RUNPOD_API_KEY not found in environment or production.env")
     
     def _get_server_host(self, pod_type: str) -> str:
         """Get server host based on pod type"""
         if pod_type == "main":
-            host = self.config.get('SERVER_HOST_MAIN')
-        elif pod_type == "branch":
-            host = self.config.get('SERVER_HOST_BRANCH')
+            return self.config.get('SERVER_HOST_MAIN', 'default-main-host')
         else:
-            raise ValueError(f"Invalid pod type '{pod_type}'. Use 'main' or 'branch'")
-        
-        if not host:
-            raise ValueError(f"SERVER_HOST_{pod_type.upper()} not found in env file")
-        
-        return host
+            return self.config.get('SERVER_HOST_BRANCH', 'default-branch-host')
     
     def _extract_pod_id(self, server_host: str) -> str:
         """Extract pod ID from server host"""
         return server_host.split('-')[0]
     
     def _print(self, message: str, force: bool = False):
-        """Print message only if verbose mode is enabled or force is True"""
+        """Print message if verbose mode is enabled or force is True"""
         if self.verbose or force:
             print(message)
     
-    def _format_curl_command(self, method: str, url: str, headers: dict, data: dict = None) -> str:
-        """Format HTTP request as curl command for debugging"""
-        curl_cmd = f"curl -X {method} '{url}'"
-        
-        # Add headers
-        for key, value in headers.items():
-            curl_cmd += f" \\\n  -H '{key}: {value}'"
-        
-        # Add data if present
-        if data:
-            import json
-            json_data = json.dumps(data, indent=2)
-            curl_cmd += f" \\\n  -d '{json_data}'"
-        
-        return curl_cmd
-    
-    def _log_request_response(self, method: str, url: str, headers: dict, data: dict = None, response = None):
-        """Log request as curl command and response for debugging"""
-        if self.verbose:
-            print("\n" + "="*60)
-            print("🔍 DEBUG: HTTP REQUEST")
-            print("="*60)
-            curl_cmd = self._format_curl_command(method, url, headers, data)
-            print(curl_cmd)
-            
-            if response:
-                print("\n" + "-"*60)
-                print("📥 RESPONSE:")
-                print("-"*60)
-                print(f"Status Code: {response.status_code}")
-                print(f"Headers: {dict(response.headers)}")
-                try:
-                    response_json = response.json()
-                    import json
-                    print(f"Body: {json.dumps(response_json, indent=2)}")
-                except:
-                    print(f"Body: {response.text}")
-            print("="*60 + "\n")
-    
-    def _make_api_request(self, method: str, endpoint: str, **kwargs) -> requests.Response:
-        """Make API request to RunPod"""
-        headers = {
-            'Authorization': f'Bearer {self.api_key}',
-            'Content-Type': 'application/json'
-        }
-        
-        url = f"{self.api_base}/{endpoint}" if endpoint else self.api_base
-        
+    def get_pod_status(self, pod_id: str) -> str:
+        """Get the current status of a pod using RunPod SDK"""
         try:
-            response = requests.request(method, url, headers=headers, timeout=30, **kwargs)
+            pods = runpod.get_pods()
+            if self.verbose:
+                self._print(f"🔍 Found {len(pods)} total pods")
             
-            # Log request and response for debugging
-            data = kwargs.get('json') if 'json' in kwargs else None
-            self._log_request_response(method, url, headers, data, response)
+            # Find the specific pod
+            for pod in pods:
+                if pod['id'] == pod_id:
+                    status = pod.get('desiredStatus', 'UNKNOWN')
+                    if self.verbose:
+                        self._print(f"Pod {pod_id} status: {status}")
+                    return status
             
-            return response
-        except requests.RequestException as e:
-            self._print(f"❌ API request failed: {e}", force=True)
-            sys.exit(1)
-    
-    def _make_graphql_request(self, query: str, variables: dict = None) -> dict:
-        """Make GraphQL request to RunPod"""
-        headers = {
-            'Authorization': f'Bearer {self.api_key}',
-            'Content-Type': 'application/json'
-        }
-        
-        payload = {'query': query}
-        if variables:
-            payload['variables'] = variables
-        
-        try:
-            response = requests.post(
-                'https://api.runpod.io/graphql',
-                json=payload,
-                headers=headers,
-                timeout=30
-            )
-            
-            # Log request and response for debugging
-            self._log_request_response('POST', 'https://api.runpod.io/graphql', headers, payload, response)
-            
-            response.raise_for_status()
-            return response.json()
-        except requests.RequestException as e:
-            self._print(f"❌ GraphQL request failed: {e}", force=True)
-            if hasattr(e, 'response') and e.response is not None:
-                try:
-                    error_details = e.response.json()
-                    self._print(f"Error details: {error_details}", force=True)
-                except:
-                    self._print(f"Response text: {e.response.text}", force=True)
-            traceback.print_exc()
-            sys.exit(1)
-    
-    def get_pod_status(self, pod_id: str) -> Optional[str]:
-        """Get current pod status"""
-        try:
-            response = self._make_api_request('GET', pod_id)
-            if response.status_code == 200:
-                data = response.json()
-                return data.get('desiredStatus')
-            else:
-                self._print(f"❌ Failed to get pod status: {response.status_code}", force=True)
-                return None
+            self._print(f"❌ Pod {pod_id} not found", force=True)
+            return 'NOT_FOUND'
+                
         except Exception as e:
-            self._print(f"❌ Error getting pod status: {e}", force=True)
-            traceback.print_exc()
-            return None
+            self._print(f"❌ Failed to get pod status: {e}", force=True)
+            return 'ERROR'
     
     def wait_for_status(self, pod_id: str, target_statuses: list, timeout: int = 300) -> bool:
         """Wait for pod to reach one of the target statuses"""
         start_time = time.time()
-        
         while time.time() - start_time < timeout:
-            status = self.get_pod_status(pod_id)
-            self._print(f"Current status: {status}")
-            
-            if status in target_statuses:
+            current_status = self.get_pod_status(pod_id)
+            if current_status in target_statuses:
                 return True
-            
-            if status in ['FAILED', 'ERROR']:
-                self._print(f"❌ Pod entered error state: {status}", force=True)
+            if current_status in ['ERROR', 'NOT_FOUND']:
                 return False
             
+            if self.verbose:
+                self._print(f"Waiting for pod status... Current: {current_status}")
             time.sleep(5)
         
-        self._print(f"❌ Timeout waiting for pod to reach {target_statuses}", force=True)
         return False
     
     def start_pod(self, pod_type: str, deploy_new_if_needed: bool = False) -> bool:
-        """Start a pod"""
+        """Start a pod using RunPod SDK"""
         self._print(f"Starting {pod_type} pod...")
         
         server_host = self._get_server_host(pod_type)
@@ -289,48 +146,44 @@ class PodManager:
                 print("RUNNING")
             return True
         
-        if current_status not in ["EXITED", "STOPPED", None]:
-            self._print(f"Pod is in unexpected state: {current_status}")
-            self._print("Waiting for pod to reach a stable state...")
-            
-            if not self.wait_for_status(pod_id, ["EXITED", "STOPPED", "RUNNING"]):
+        if current_status in ['NOT_FOUND', 'ERROR']:
+            if deploy_new_if_needed:
+                self._print("Pod not found, attempting to deploy a new pod...")
+                return self.deploy_pod(pod_type)
+            else:
+                self._print("❌ Pod not found and deploy_new_if_needed is False", force=True)
                 return False
+        
+        # Start the pod using RunPod SDK
+        self._print(f"Starting pod {pod_id}...")
+        try:
+            result = runpod.start_pod(pod_id)
+            if self.verbose:
+                self._print(f"🔍 Start result: {result}")
             
-            # Check again after waiting
-            current_status = self.get_pod_status(pod_id)
-            if current_status == "RUNNING":
-                self._print("✅ Pod is now running. No action needed.")
+            self._print("Start command sent. Waiting for pod to start...")
+            
+            if self.wait_for_status(pod_id, ["RUNNING"]):
+                self._print("✅ Pod is now running successfully!")
                 if not self.verbose:
                     print("RUNNING")
                 return True
-        
-        # Start the pod
-        self._print(f"Starting pod {pod_id}...")
-        response = self._make_api_request('POST', f"{pod_id}/start")
-        
-        if response.status_code not in [200, 202]:
-            self._print(f"❌ Failed to start pod: {response.status_code} - {response.text}", force=True)
+            else:
+                self._print("❌ Pod failed to start", force=True)
+                if deploy_new_if_needed:
+                    self._print("Pod failed to start, attempting to deploy a new pod...")
+                    return self.deploy_pod(pod_type)
+                return False
+                
+        except Exception as e:
+            self._print(f"❌ Start failed: {e}", force=True)
             if deploy_new_if_needed:
-                self._print("Attempting to deploy a new pod...")
-                return self.deploy_pod(pod_type)
-            return False
-        
-        self._print("Start command sent. Waiting for pod to start...")
-        
-        if self.wait_for_status(pod_id, ["RUNNING"]):
-            self._print("✅ Pod is now running successfully!")
-            if not self.verbose:
-                print("RUNNING")
-            return True
-        else:
-            self._print("❌ Pod failed to start", force=True)
-            if deploy_new_if_needed:
-                self._print("Pod failed to start, attempting to deploy a new pod...")
+                self._print("Start command failed, attempting to deploy a new pod...")
                 return self.deploy_pod(pod_type)
             return False
     
     def stop_pod(self, pod_type: str) -> bool:
-        """Stop a pod"""
+        """Stop a pod using RunPod SDK"""
         self._print(f"Stopping {pod_type} pod...")
         
         server_host = self._get_server_host(pod_type)
@@ -349,51 +202,43 @@ class PodManager:
                 print(current_status)
             return True
         
-        if current_status != "RUNNING":
-            self._print(f"Pod is in unexpected state: {current_status}")
-            self._print("Waiting for pod to reach a stable state...")
-            
-            if not self.wait_for_status(pod_id, ["EXITED", "STOPPED", "RUNNING"]):
-                return False
-            
-            # Check again after waiting
-            current_status = self.get_pod_status(pod_id)
-            if current_status in ["EXITED", "STOPPED"]:
-                self._print("✅ Pod is now stopped. No action needed.")
-                if not self.verbose:
-                    print(current_status)
-                return True
+        if current_status in ['NOT_FOUND', 'ERROR']:
+            self._print("❌ Pod not found or error getting status", force=True)
+            return False
         
-        # Stop the pod
+        # Stop the pod using RunPod SDK
         self._print(f"Stopping pod {pod_id}...")
-        response = self._make_api_request('POST', f"{pod_id}/stop")
-        
-        if response.status_code not in [200, 202]:
-            self._print(f"❌ Failed to stop pod: {response.status_code} - {response.text}", force=True)
-            return False
-        
-        self._print("Stop command sent. Waiting for pod to stop...")
-        
-        if self.wait_for_status(pod_id, ["EXITED", "STOPPED"]):
-            final_status = self.get_pod_status(pod_id)
-            self._print("✅ Pod is now stopped successfully!")
-            if not self.verbose:
-                print(final_status)
-            return True
-        else:
-            self._print("❌ Pod failed to stop", force=True)
+        try:
+            result = runpod.stop_pod(pod_id)
+            if self.verbose:
+                self._print(f"🔍 Stop result: {result}")
+            
+            self._print("Stop command sent. Waiting for pod to stop...")
+            
+            if self.wait_for_status(pod_id, ["EXITED", "STOPPED"]):
+                final_status = self.get_pod_status(pod_id)
+                self._print("✅ Pod is now stopped successfully!")
+                if not self.verbose:
+                    print(final_status)
+                return True
+            else:
+                self._print("❌ Pod failed to stop", force=True)
+                return False
+                
+        except Exception as e:
+            self._print(f"❌ Stop failed: {e}", force=True)
             return False
     
     def restart_pod(self, pod_type: str, deploy_new_if_needed: bool = False) -> bool:
         """Restart a pod (stop then start)"""
         self._print(f"Restarting {pod_type} pod...")
         
+        # Stop the pod first
         if not self.stop_pod(pod_type):
+            self._print("❌ Failed to stop pod for restart", force=True)
             return False
         
-        # Wait a bit between stop and start
-        time.sleep(5)
-        
+        # Start the pod
         return self.start_pod(pod_type, deploy_new_if_needed)
     
     def status_pod(self, pod_type: str) -> bool:
@@ -412,202 +257,158 @@ class PodManager:
             print(status)
         
         return True
-
-    def restart_pod(self, pod_type: str, deploy_new_if_needed: bool = False) -> bool:
-        """Restart a pod (stop then start)"""
-        self._print(f"Restarting {pod_type} pod...")
-        
-        if not self.stop_pod(pod_type):
-            return False
-        
-        # Wait a bit between stop and start
-        time.sleep(5)  # TODO: instead you should wait for the pod to be stopped with some timeout
-        
-        return self.start_pod(pod_type, deploy_new_if_needed)
-
-    def status_pod(self, pod_type: str) -> bool:
-        """Get pod status"""
-        server_host = self._get_server_host(pod_type)
-        pod_id = self._extract_pod_id(server_host)
-        
-        self._print(f"Pod Type: {pod_type}")
-        self._print(f"Pod ID: {pod_id}")
-        self._print(f"Server Host: {server_host}")
-        
-        status = self.get_pod_status(pod_id)
-        if self.verbose:
-            print(f"Status: {status}")
-        else:
-            print(status)
-        
-        return True
-
+    
     def deploy_pod(self, pod_type: str) -> bool:
-        """Deploy a new pod using the cheapest available GPU under $0.30/hr"""
+        """Deploy a new pod using RunPod SDK with the cheapest available GPU"""
         self._print(f"Deploying new {pod_type} pod...")
         
-        # GraphQL query to get available GPUs
-        gpu_query = """
-        query {
-            gpuTypes {
-                id
-                displayName
-                communitySpotPrice
-                secureSpotPrice
-            }
-        }
-        """
-        
         try:
-            # Get available GPUs
-            response = self._make_graphql_request(gpu_query)
+            # Get available GPU types and their detailed prices
+            gpu_types = runpod.get_gpus()
+            if self.verbose:
+                self._print(f"🔍 Found {len(gpu_types)} GPU types")
             
-            if 'errors' in response:
-                self._print(f"❌ GraphQL errors: {response['errors']}", force=True)
-                return False
+            # Get detailed pricing for each GPU
+            detailed_gpus = []
+            print("\n=== Available GPUs with Spot Prices ===")
+            print("=" * 60)
             
-            gpu_types = response.get('data', {}).get('gpuTypes', [])
+            for i, gpu_basic in enumerate(gpu_types, 1):
+                try:
+                    # Get detailed info including pricing for each GPU
+                    gpu_detailed = runpod.get_gpu(gpu_basic['id'])
+                    detailed_gpus.append(gpu_detailed)
+                    
+                    name = gpu_detailed.get('displayName', gpu_basic.get('id', 'Unknown'))
+                    community_spot = gpu_detailed.get('communitySpotPrice')
+                    secure_spot = gpu_detailed.get('secureSpotPrice')
+                    
+                    print(f'{i:2d}. {name}')
+                    print(f'    ID: {gpu_basic.get("id", "N/A")}')
+                    
+                    if community_spot is not None:
+                        print(f'    Community Spot: ${community_spot:.3f}/hr')
+                    else:
+                        print(f'    Community Spot: N/A')
+                        
+                    if secure_spot is not None:
+                        print(f'    Secure Spot: ${secure_spot:.3f}/hr')
+                    else:
+                        print(f'    Secure Spot: N/A')
+                    
+                    # Show lowest price info if available
+                    if gpu_detailed.get('lowestPrice'):
+                        lowest = gpu_detailed['lowestPrice']
+                        if lowest.get('minimumBidPrice'):
+                            print(f'    Min Bid: ${lowest["minimumBidPrice"]:.3f}/hr')
+                    
+                    print()
+                    
+                except Exception as e:
+                    if self.verbose:
+                        self._print(f"Warning: Could not get detailed pricing for {gpu_basic.get('id', 'Unknown')}: {e}")
+                    # Fallback to basic info
+                    detailed_gpus.append(gpu_basic)
             
-            # Filter GPUs by price threshold
+            print("=" * 60)
+            
+            # Filter GPUs by price threshold using detailed pricing
             max_price = float(self.config.get('MAX_GPU_PRICE', '0.30'))
             affordable_gpus = []
             
-            for gpu in gpu_types:
-                community_price = gpu.get('communitySpotPrice')
-                secure_price = gpu.get('secureSpotPrice')
+            print(f"\n🔍 Filtering GPUs under ${max_price}/hr...")
+            
+            for gpu in detailed_gpus:
+                community_spot = gpu.get('communitySpotPrice')
+                secure_spot = gpu.get('secureSpotPrice')
                 
-                # Get the minimum available price (prefer community over secure)
+                # Get the minimum available spot price (prefer community over secure)
                 min_price = None
-                if community_price is not None:
-                    min_price = community_price
-                elif secure_price is not None:
-                    min_price = secure_price
+                if community_spot is not None:
+                    min_price = community_spot
+                elif secure_spot is not None:
+                    min_price = secure_spot
                 
                 if min_price is not None and min_price <= max_price:
                     affordable_gpus.append({
                         'id': gpu['id'],
-                        'name': gpu['displayName'],
-                        'price': min_price
+                        'name': gpu.get('displayName', gpu['id']),
+                        'price': min_price,
+                        'community_spot': community_spot,
+                        'secure_spot': secure_spot
                     })
+                    if self.verbose:
+                        self._print(f"✅ {gpu.get('displayName', gpu['id'])} - ${min_price:.3f}/hr (affordable)")
             
             if not affordable_gpus:
                 self._print(f"❌ No GPUs found under ${max_price}/hr", force=True)
                 return False
             
-            # Sort by price (cheapest first)
+            # Sort by price (cheapest first) and select the best option
             affordable_gpus.sort(key=lambda x: x['price'])
+            selected_gpu = affordable_gpus[0]
             
-            # Use multiple GPU types to increase chances of finding available pods
-            gpu_type_ids = [gpu['id'] for gpu in affordable_gpus[:5]]  # Use top 5 cheapest
+            self._print(f"Selected GPU: {selected_gpu['name']} - ${selected_gpu['price']:.3f}/hr")
             
-            self._print(f"Trying {len(gpu_type_ids)} GPU types (cheapest first):")
-            for i, gpu in enumerate(affordable_gpus[:5]):
-                self._print(f"  {i+1}. {gpu['name']} - ${gpu['price']:.3f}/hr")
+            # Create pod using RunPod SDK
+            pod_name = f"ashoka-{pod_type}-{int(time.time())}"
+            image_name = self.config.get('IMAGE_NAME', 'docker.io/smartsocialcontracts/ashoka:latest')
+            volume_size = int(self.config.get('VOLUME_SIZE', '50'))  # GB for persistent storage
+            container_disk = int(self.config.get('CONTAINER_DISK', '20'))  # GB for container disk
             
-            # Get volume ID based on pod type
-            if pod_type == "main":
-                volume_id = self.config.get('VOLUME_ID_MAIN', '74qwk1f72z9')
-            else:
-                volume_id = self.config.get('VOLUME_ID_BRANCH', 'ipy89pj504')
+            self._print(f"Creating pod: {pod_name}")
+            self._print(f"Image: {image_name}")
+            self._print(f"GPU: {selected_gpu['id']}")
+            self._print(f"Volume: {volume_size}GB")
+            self._print(f"Container Disk: {container_disk}GB")
             
-            # Create pod using REST API
-            pod_data = {
-                "name": f"ashoka-{pod_type}-{int(time.time())}",
-                "imageName": self.config.get('IMAGE_NAME', 'docker.io/smartsocialcontracts/ashoka:latest'),
-                "gpuTypeIds": gpu_type_ids,
-                "gpuCount": 1,
-                "containerDiskInGb": int(self.config.get('CONTAINER_DISK', '20')),
-                "networkVolumeId": volume_id
-            }
-            
-            # Make REST API request to create pod
-            headers = {
-                'Authorization': f'Bearer {self.api_key}',
-                'Content-Type': 'application/json'
-            }
-            
-            response = requests.post(
-                'https://api.runpod.io/v2/pods',
-                json=pod_data,
-                headers=headers,
-                timeout=30
+            # Use the RunPod SDK to create the pod with proper parameters
+            result = runpod.create_pod(
+                name=pod_name,
+                image_name=image_name,
+                gpu_type_id=selected_gpu['id'],
+                cloud_type="COMMUNITY",  # Use community cloud for better pricing
+                gpu_count=1,
+                volume_in_gb=volume_size,  # Persistent storage
+                container_disk_in_gb=container_disk,  # Container disk
+                ports="5000/http,22/tcp",  # Flask app on 5000, SSH on 22
+                env={
+                    "FLASK_ENV": "production",
+                    "PYTHONPATH": "/workspace"
+                },
+                support_public_ip=True,
+                start_ssh=True
             )
             
-            # Log request and response for debugging
-            self._log_request_response('POST', 'https://api.runpod.io/v2/pods', headers, pod_data, response)
+            if self.verbose:
+                self._print(f"🔍 Create result: {result}")
             
-            if response.status_code == 200:
-                result = response.json()
-                pod_id = result.get('id')
+            # Extract pod ID from result
+            pod_id = result.get('id') if isinstance(result, dict) else str(result)
+            
+            if pod_id:
+                self._print(f"✅ Pod created successfully!")
+                self._print(f"Pod ID: {pod_id}")
                 
-                if pod_id:
-                    self._print(f"✅ Pod created successfully!")
-                    self._print(f"Pod ID: {pod_id}")
-                    
-                    # Generate pod URL
-                    pod_url = f"https://{pod_id}-5000.proxy.runpod.net"
-                    self._print(f"Pod URL: {pod_url}")
-                    
-                    if not self.verbose:
-                        print(pod_id)
-                    
-                    return True
-                else:
-                    self._print(f"❌ Pod creation failed: No pod ID in response", force=True)
-                    return False
+                # Generate pod URL
+                pod_url = f"https://{pod_id}-5000.proxy.runpod.net"
+                self._print(f"Pod URL: {pod_url}")
+                
+                if not self.verbose:
+                    print(pod_id)
+                
+                return True
             else:
-                self._print(f"❌ Pod creation failed: {response.status_code}", force=True)
-                # Show response details for debugging
-                try:
-                    error_response = response.json()
-                    self._print(f"Error response: {error_response}", force=True)
-                except:
-                    self._print(f"Error response text: {response.text}", force=True)
+                self._print(f"❌ Pod creation failed: No pod ID returned", force=True)
                 return False
                 
-        except requests.RequestException as e:
-            self._print(f"❌ Pod creation request failed: {e}", force=True)
-            return False
         except Exception as e:
             self._print(f"❌ Deployment failed: {e}", force=True)
             traceback.print_exc()
             return False
-
-    def terminate_pod(self, pod_type: str) -> bool:
-        """Terminate (delete) a pod"""
-        self._print(f"Terminating {pod_type} pod...")
-        
-        try:
-            server_host = self._get_server_host(pod_type)
-            pod_id = self._extract_pod_id(server_host)
-            
-            self._print(f"Pod ID: {pod_id}")
-            self._print(f"Server Host: {server_host}")
-            
-            # Delete the pod
-            response = self._make_api_request('DELETE', pod_id)
-            
-            if response.status_code in [200, 204]:
-                self._print(f"✅ Pod {pod_id} terminated successfully!")
-                if not self.verbose:
-                    print("TERMINATED")
-                return True
-            else:
-                self._print(f"❌ Failed to terminate pod: {response.status_code} - {response.text}", force=True)
-                return False
-                
-        except Exception as e:
-            self._print(f"❌ Termination failed: {e}", force=True)
-            return False
-            
-            return True
-            
-        except Exception as e:
-            self._print(f"❌ Deployment failed: {e}", force=True)
-            return False
     
     def terminate_pod(self, pod_type: str) -> bool:
-        """Terminate (delete) a pod"""
+        """Terminate (delete) a pod using RunPod SDK"""
         self._print(f"Terminating {pod_type} pod...")
         
         try:
@@ -617,17 +418,15 @@ class PodManager:
             self._print(f"Pod ID: {pod_id}")
             self._print(f"Server Host: {server_host}")
             
-            # Delete the pod
-            response = self._make_api_request('DELETE', pod_id)
+            # Delete the pod using RunPod SDK
+            result = runpod.terminate_pod(pod_id)
+            if self.verbose:
+                self._print(f"🔍 Terminate result: {result}")
             
-            if response.status_code in [200, 204]:
-                self._print(f"✅ Pod {pod_id} terminated successfully!")
-                if not self.verbose:
-                    print("TERMINATED")
-                return True
-            else:
-                self._print(f"❌ Failed to terminate pod: {response.status_code} - {response.text}", force=True)
-                return False
+            self._print(f"✅ Pod {pod_id} terminated successfully!")
+            if not self.verbose:
+                print("TERMINATED")
+            return True
                 
         except Exception as e:
             self._print(f"❌ Termination failed: {e}", force=True)
@@ -636,7 +435,7 @@ class PodManager:
 
 def main():
     parser = argparse.ArgumentParser(
-        description="RunPod Manager - Manage RunPod instances",
+        description="RunPod Manager - Manage RunPod instances using the official RunPod SDK",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
