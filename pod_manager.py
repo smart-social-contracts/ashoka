@@ -19,11 +19,12 @@ from typing import Dict, Optional, Tuple
 
 
 class PodManager:
-    def __init__(self):
+    def __init__(self, verbose: bool = True):
         self.script_dir = Path(__file__).parent
         self.api_base = "https://rest.runpod.io/v1/pods"
         self.config = self._load_config()
         self.api_key = self._get_api_key()
+        self.verbose = verbose
         
     def _load_config(self) -> Dict[str, str]:
         """Load configuration from env file"""
@@ -67,6 +68,11 @@ class PodManager:
         """Extract pod ID from server host"""
         return server_host.split('-')[0]
     
+    def _print(self, message: str, force: bool = False):
+        """Print message only if verbose mode is enabled or force is True"""
+        if self.verbose or force:
+            print(message)
+    
     def _make_api_request(self, method: str, endpoint: str, **kwargs) -> requests.Response:
         """Make API request to RunPod"""
         headers = {
@@ -80,7 +86,7 @@ class PodManager:
             response = requests.request(method, url, headers=headers, timeout=30, **kwargs)
             return response
         except requests.RequestException as e:
-            print(f"❌ API request failed: {e}")
+            self._print(f"❌ API request failed: {e}", force=True)
             sys.exit(1)
     
     def get_pod_status(self, pod_id: str) -> Optional[str]:
@@ -91,10 +97,10 @@ class PodManager:
                 data = response.json()
                 return data.get('desiredStatus')
             else:
-                print(f"❌ Failed to get pod status: {response.status_code}")
+                self._print(f"❌ Failed to get pod status: {response.status_code}", force=True)
                 return None
         except Exception as e:
-            print(f"❌ Error getting pod status: {e}")
+            self._print(f"❌ Error getting pod status: {e}", force=True)
             return None
     
     def wait_for_status(self, pod_id: str, target_statuses: list, timeout: int = 300) -> bool:
@@ -103,41 +109,43 @@ class PodManager:
         
         while time.time() - start_time < timeout:
             status = self.get_pod_status(pod_id)
-            print(f"Current status: {status}")
+            self._print(f"Current status: {status}")
             
             if status in target_statuses:
                 return True
             
             if status in ['FAILED', 'ERROR']:
-                print(f"❌ Pod entered error state: {status}")
+                self._print(f"❌ Pod entered error state: {status}", force=True)
                 return False
             
             time.sleep(5)
         
-        print(f"❌ Timeout waiting for pod to reach {target_statuses}")
+        self._print(f"❌ Timeout waiting for pod to reach {target_statuses}", force=True)
         return False
     
     def start_pod(self, pod_type: str) -> bool:
         """Start a pod"""
-        print(f"Starting {pod_type} pod...")
+        self._print(f"Starting {pod_type} pod...")
         
         server_host = self._get_server_host(pod_type)
         pod_id = self._extract_pod_id(server_host)
         
-        print(f"Pod ID: {pod_id}")
-        print(f"Server Host: {server_host}")
+        self._print(f"Pod ID: {pod_id}")
+        self._print(f"Server Host: {server_host}")
         
         # Check current status
         current_status = self.get_pod_status(pod_id)
-        print(f"Current status: {current_status}")
+        self._print(f"Current status: {current_status}")
         
         if current_status == "RUNNING":
-            print("✅ Pod is already running. No action needed.")
+            self._print("✅ Pod is already running. No action needed.")
+            if not self.verbose:
+                print("RUNNING")
             return True
         
         if current_status not in ["EXITED", "STOPPED", None]:
-            print(f"Pod is in unexpected state: {current_status}")
-            print("Waiting for pod to reach a stable state...")
+            self._print(f"Pod is in unexpected state: {current_status}")
+            self._print("Waiting for pod to reach a stable state...")
             
             if not self.wait_for_status(pod_id, ["EXITED", "STOPPED", "RUNNING"]):
                 return False
@@ -145,47 +153,53 @@ class PodManager:
             # Check again after waiting
             current_status = self.get_pod_status(pod_id)
             if current_status == "RUNNING":
-                print("✅ Pod is now running. No action needed.")
+                self._print("✅ Pod is now running. No action needed.")
+                if not self.verbose:
+                    print("RUNNING")
                 return True
         
         # Start the pod
-        print(f"Starting pod {pod_id}...")
+        self._print(f"Starting pod {pod_id}...")
         response = self._make_api_request('POST', f"{pod_id}/start")
         
         if response.status_code not in [200, 202]:
-            print(f"❌ Failed to start pod: {response.status_code} - {response.text}")
+            self._print(f"❌ Failed to start pod: {response.status_code} - {response.text}", force=True)
             return False
         
-        print("Start command sent. Waiting for pod to start...")
+        self._print("Start command sent. Waiting for pod to start...")
         
         if self.wait_for_status(pod_id, ["RUNNING"]):
-            print("✅ Pod is now running successfully!")
+            self._print("✅ Pod is now running successfully!")
+            if not self.verbose:
+                print("RUNNING")
             return True
         else:
-            print("❌ Pod failed to start")
+            self._print("❌ Pod failed to start", force=True)
             return False
     
     def stop_pod(self, pod_type: str) -> bool:
         """Stop a pod"""
-        print(f"Stopping {pod_type} pod...")
+        self._print(f"Stopping {pod_type} pod...")
         
         server_host = self._get_server_host(pod_type)
         pod_id = self._extract_pod_id(server_host)
         
-        print(f"Pod ID: {pod_id}")
-        print(f"Server Host: {server_host}")
+        self._print(f"Pod ID: {pod_id}")
+        self._print(f"Server Host: {server_host}")
         
         # Check current status
         current_status = self.get_pod_status(pod_id)
-        print(f"Current status: {current_status}")
+        self._print(f"Current status: {current_status}")
         
         if current_status in ["EXITED", "STOPPED"]:
-            print("✅ Pod is already stopped. No action needed.")
+            self._print("✅ Pod is already stopped. No action needed.")
+            if not self.verbose:
+                print(current_status)
             return True
         
         if current_status != "RUNNING":
-            print(f"Pod is in unexpected state: {current_status}")
-            print("Waiting for pod to reach a stable state...")
+            self._print(f"Pod is in unexpected state: {current_status}")
+            self._print("Waiting for pod to reach a stable state...")
             
             if not self.wait_for_status(pod_id, ["EXITED", "STOPPED", "RUNNING"]):
                 return False
@@ -193,29 +207,34 @@ class PodManager:
             # Check again after waiting
             current_status = self.get_pod_status(pod_id)
             if current_status in ["EXITED", "STOPPED"]:
-                print("✅ Pod is now stopped. No action needed.")
+                self._print("✅ Pod is now stopped. No action needed.")
+                if not self.verbose:
+                    print(current_status)
                 return True
         
         # Stop the pod
-        print(f"Stopping pod {pod_id}...")
+        self._print(f"Stopping pod {pod_id}...")
         response = self._make_api_request('POST', f"{pod_id}/stop")
         
         if response.status_code not in [200, 202]:
-            print(f"❌ Failed to stop pod: {response.status_code} - {response.text}")
+            self._print(f"❌ Failed to stop pod: {response.status_code} - {response.text}", force=True)
             return False
         
-        print("Stop command sent. Waiting for pod to stop...")
+        self._print("Stop command sent. Waiting for pod to stop...")
         
         if self.wait_for_status(pod_id, ["EXITED", "STOPPED"]):
-            print("✅ Pod is now stopped successfully!")
+            final_status = self.get_pod_status(pod_id)
+            self._print("✅ Pod is now stopped successfully!")
+            if not self.verbose:
+                print(final_status)
             return True
         else:
-            print("❌ Pod failed to stop")
+            self._print("❌ Pod failed to stop", force=True)
             return False
     
     def restart_pod(self, pod_type: str) -> bool:
         """Restart a pod (stop then start)"""
-        print(f"Restarting {pod_type} pod...")
+        self._print(f"Restarting {pod_type} pod...")
         
         if not self.stop_pod(pod_type):
             return False
@@ -230,12 +249,15 @@ class PodManager:
         server_host = self._get_server_host(pod_type)
         pod_id = self._extract_pod_id(server_host)
         
-        print(f"Pod Type: {pod_type}")
-        print(f"Pod ID: {pod_id}")
-        print(f"Server Host: {server_host}")
+        self._print(f"Pod Type: {pod_type}")
+        self._print(f"Pod ID: {pod_id}")
+        self._print(f"Server Host: {server_host}")
         
         status = self.get_pod_status(pod_id)
-        print(f"Status: {status}")
+        if self.verbose:
+            print(f"Status: {status}")
+        else:
+            print(status)
         
         return True
 
@@ -257,6 +279,8 @@ Examples:
                        help='Pod type to manage')
     parser.add_argument('action', choices=['start', 'stop', 'restart', 'status'],
                        help='Action to perform')
+    parser.add_argument('--verbose', '-v', action='store_true',
+                       help='Enable verbose output (default: concise)')
     
     if len(sys.argv) == 1:
         parser.print_help()
@@ -265,7 +289,7 @@ Examples:
     args = parser.parse_args()
     
     try:
-        manager = PodManager()
+        manager = PodManager(verbose=args.verbose)
         
         if args.action == 'start':
             success = manager.start_pod(args.pod_type)
