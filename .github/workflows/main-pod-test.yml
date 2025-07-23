@@ -1,53 +1,42 @@
-name: Restart Pod and Check Status
+name: Main Pod Test
 
 on:
   workflow_dispatch:
   push:
     branches:
       - main
-      - develop
-      - staging
 
 jobs:
-  restart-and-check:
+  test-main-pod:
     runs-on: ubuntu-latest
     
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set server host based on branch
-        id: set-host
-        run: |
-          source ./env
-          if [ "${{ github.ref_name }}" == "main" ]; then
-            echo "SERVER_HOST=$SERVER_HOST_MAIN" >> $GITHUB_ENV
-            echo "Using main branch host: $SERVER_HOST_MAIN"
-          else
-            echo "SERVER_HOST=$SERVER_HOST_BRANCH" >> $GITHUB_ENV
-            echo "Using branch host: $SERVER_HOST_BRANCH"
-          fi
-
       - name: Set RunPod API key
         run: |
           echo "RUNPOD_API_KEY=${{ secrets.RUNPOD_API_KEY }}" >> $GITHUB_ENV
 
-      - name: Make restart script executable
-        run: chmod +x ./restart_pod.sh
-
-      - name: Restart RunPod
+      - name: Make pod scripts executable
         run: |
-          echo "Restarting pod for branch: ${{ github.ref_name }}"
-          echo "Using server host: $SERVER_HOST"
-          ./restart_pod.sh
+          chmod +x ./start_pod.sh
+          chmod +x ./stop_pod.sh
+
+      - name: Ensure main pod is running
+        run: |
+          echo "Ensuring main pod is running..."
+          ./start_pod.sh main
 
       - name: Wait for pod to be ready
         run: |
-          echo "Waiting for pod to start up..."
+          echo "Waiting for pod to be fully ready..."
           sleep 30
 
-      - name: Check Flask server status
+      - name: Test Flask server status
         run: |
+          source ./env
+          SERVER_HOST=$SERVER_HOST_MAIN
           echo "Checking Flask server status at: https://$SERVER_HOST"
           
           # Try to reach the server with retries
@@ -58,7 +47,7 @@ jobs:
             echo "Attempt $attempt/$max_attempts: Checking server status..."
             
             if curl -f -s --max-time 10 "https://$SERVER_HOST/health" > /dev/null 2>&1; then
-              echo "✅ Flask server is responding!"
+              echo "✅ Main Flask server is responding!"
               
               # Get detailed status
               echo "Server response:"
@@ -69,7 +58,7 @@ jobs:
             else
               echo "❌ Server not responding yet..."
               if [ $attempt -eq $max_attempts ]; then
-                echo "🚨 Server failed to respond after $max_attempts attempts"
+                echo "🚨 Main server failed to respond after $max_attempts attempts"
                 exit 1
               fi
               sleep 15
@@ -81,7 +70,9 @@ jobs:
       - name: Report final status
         if: always()
         run: |
-          echo "=== Final Status Report ==="
+          source ./env
+          echo "=== Main Pod Status Report ==="
           echo "Branch: ${{ github.ref_name }}"
-          echo "Server Host: $SERVER_HOST"
+          echo "Server Host: $SERVER_HOST_MAIN"
+          echo "Pod Status: Main pod should remain running"
           echo "Workflow completed at: $(date)"
