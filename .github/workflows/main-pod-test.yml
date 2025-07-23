@@ -39,7 +39,3 @@ jobs:
           sleep $TIMEOUT_SECS
           
           curl -f --max-time 15 "$POD_URL/health" || curl -f --max-time 15 "$POD_URL/"
-
-      - name: Stop main pod
-        if: always()
-        run: ./pod_manager.py main stop --verbose
