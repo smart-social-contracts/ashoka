@@ -1,0 +1,87 @@
+name: Restart Pod and Check Status
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - develop
+      - staging
+
+jobs:
+  restart-and-check:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set server host based on branch
+        id: set-host
+        run: |
+          source ./env
+          if [ "${{ github.ref_name }}" == "main" ]; then
+            echo "SERVER_HOST=$SERVER_HOST_MAIN" >> $GITHUB_ENV
+            echo "Using main branch host: $SERVER_HOST_MAIN"
+          else
+            echo "SERVER_HOST=$SERVER_HOST_BRANCH" >> $GITHUB_ENV
+            echo "Using branch host: $SERVER_HOST_BRANCH"
+          fi
+
+      - name: Set RunPod API key
+        run: |
+          echo "RUNPOD_API_KEY=${{ secrets.RUNPOD_API_KEY }}" >> $GITHUB_ENV
+
+      - name: Make restart script executable
+        run: chmod +x ./restart_pod.sh
+
+      - name: Restart RunPod
+        run: |
+          echo "Restarting pod for branch: ${{ github.ref_name }}"
+          echo "Using server host: $SERVER_HOST"
+          ./restart_pod.sh
+
+      - name: Wait for pod to be ready
+        run: |
+          echo "Waiting for pod to start up..."
+          sleep 30
+
+      - name: Check Flask server status
+        run: |
+          echo "Checking Flask server status at: https://$SERVER_HOST"
+          
+          # Try to reach the server with retries
+          max_attempts=10
+          attempt=1
+          
+          while [ $attempt -le $max_attempts ]; do
+            echo "Attempt $attempt/$max_attempts: Checking server status..."
+            
+            if curl -f -s --max-time 10 "https://$SERVER_HOST/health" > /dev/null 2>&1; then
+              echo "✅ Flask server is responding!"
+              
+              # Get detailed status
+              echo "Server response:"
+              curl -s "https://$SERVER_HOST/health" || echo "Health endpoint not available, trying root..."
+              curl -s "https://$SERVER_HOST/" | head -20 || echo "Root endpoint not available"
+              
+              exit 0
+            else
+              echo "❌ Server not responding yet..."
+              if [ $attempt -eq $max_attempts ]; then
+                echo "🚨 Server failed to respond after $max_attempts attempts"
+                exit 1
+              fi
+              sleep 15
+            fi
+            
+            attempt=$((attempt + 1))
+          done
+
+      - name: Report final status
+        if: always()
+        run: |
+          echo "=== Final Status Report ==="
+          echo "Branch: ${{ github.ref_name }}"
+          echo "Server Host: $SERVER_HOST"
+          echo "Workflow completed at: $(date)"
