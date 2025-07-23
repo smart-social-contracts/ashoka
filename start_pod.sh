@@ -12,7 +12,6 @@ POD_TYPE=$1
 
 # Source the env file to get pod configurations
 source $(dirname "$0")/env
-source $(dirname "$0")/production.env
 
 # Select the appropriate server host based on pod type
 if [ "$POD_TYPE" == "main" ]; then
