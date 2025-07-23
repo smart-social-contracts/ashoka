@@ -32,9 +32,14 @@ API="https://rest.runpod.io/v1/pods"
 echo "Pod ID: $POD_ID"
 echo "Server Host: $SERVER_HOST"
 
-# Function to get pod status
+# Function to get pod status with error handling
 get_pod_status() {
-    curl -s -H "Authorization: Bearer $RUNPOD_API_KEY" "$API/$POD_ID" | grep -o '"desiredStatus":"[^"]*"' | cut -d':' -f2 | tr -d '"'
+    local response=$(curl -s -H "Authorization: Bearer $RUNPOD_API_KEY" "$API/$POD_ID" 2>/dev/null)
+    if [ $? -ne 0 ] || [ -z "$response" ]; then
+        echo "API_ERROR"
+        return 1
+    fi
+    echo "$response" | grep -o '"desiredStatus":"[^"]*"' | cut -d':' -f2 | tr -d '"' 2>/dev/null || echo "PARSE_ERROR"
 }
 
 # === CHECK INITIAL STATUS ===
@@ -51,15 +56,26 @@ if [ "$CURRENT_STATUS" != "RUNNING" ]; then
     echo "Pod is in unexpected state: $CURRENT_STATUS"
     echo "Waiting for pod to reach a stable state..."
     
-    # Wait for stable state
-    while true; do
+    # Wait for stable state with timeout
+    timeout_seconds=300  # 5 minutes
+    elapsed=0
+    while [ $elapsed -lt $timeout_seconds ]; do
         STATUS=$(get_pod_status)
-        echo "Current status: $STATUS"
+        echo "Current status: $STATUS (elapsed: ${elapsed}s)"
         if [ "$STATUS" == "EXITED" ] || [ "$STATUS" == "STOPPED" ] || [ "$STATUS" == "RUNNING" ]; then
             break
         fi
+        if [ "$STATUS" == "API_ERROR" ] || [ "$STATUS" == "PARSE_ERROR" ]; then
+            echo "❌ API error while checking pod status. Retrying..."
+        fi
         sleep 5
+        elapsed=$((elapsed + 5))
     done
+    
+    if [ $elapsed -ge $timeout_seconds ]; then
+        echo "❌ Timeout waiting for pod to reach stable state after ${timeout_seconds}s"
+        exit 1
+    fi
     
     if [ "$STATUS" == "EXITED" ] || [ "$STATUS" == "STOPPED" ]; then
         echo "Pod is now stopped. No action needed."
@@ -73,9 +89,11 @@ curl -s -X POST -H "Authorization: Bearer $RUNPOD_API_KEY" "$API/$POD_ID/stop"
 echo "Stop command sent. Waiting for pod to stop..."
 
 # === WAIT FOR STOP ===
-while true; do
+timeout_seconds=600  # 10 minutes for pod shutdown
+elapsed=0
+while [ $elapsed -lt $timeout_seconds ]; do
     STATUS=$(get_pod_status)
-    echo "Current status: $STATUS"
+    echo "Current status: $STATUS (elapsed: ${elapsed}s)"
     if [ "$STATUS" == "EXITED" ] || [ "$STATUS" == "STOPPED" ]; then
         echo "✅ Pod is now stopped successfully!"
         break
@@ -84,7 +102,20 @@ while true; do
         echo "❌ Pod encountered an error during shutdown. Status: $STATUS"
         exit 1
     fi
+    if [ "$STATUS" == "API_ERROR" ]; then
+        echo "❌ API error while checking pod status. This may indicate network issues or invalid API key."
+        exit 1
+    fi
+    if [ "$STATUS" == "PARSE_ERROR" ]; then
+        echo "⚠️ Unable to parse API response. Retrying..."
+    fi
     sleep 5
+    elapsed=$((elapsed + 5))
 done
+
+if [ $elapsed -ge $timeout_seconds ]; then
+    echo "❌ Timeout waiting for pod to stop after ${timeout_seconds}s"
+    exit 1
+fi
 
 echo "Pod shutdown completed successfully!"
