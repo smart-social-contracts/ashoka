@@ -55,22 +55,12 @@ class PodManager:
         return config
     
     def _get_api_key(self) -> str:
-        """Get RunPod API key from environment or production.env"""
-        # Try environment variable first
+        """Get RunPod API key from environment"""
         api_key = os.getenv('RUNPOD_API_KEY')
         if api_key:
             return api_key
         
-        # Try production.env file
-        prod_env_file = self.script_dir / "production.env"
-        if prod_env_file.exists():
-            with open(prod_env_file, 'r') as f:
-                for line in f:
-                    line = line.strip()
-                    if line.startswith('RUNPOD_API_KEY='):
-                        return line.split('=', 1)[1].strip()
-        
-        raise ValueError("RUNPOD_API_KEY not found in environment or production.env")
+        raise ValueError("RUNPOD_API_KEY not found in environment")
     
     def _find_pod_by_type(self, pod_type: str) -> tuple[str, str]:
         """Find existing pod by type, returns (pod_id, server_host) or (None, None) if not found"""
