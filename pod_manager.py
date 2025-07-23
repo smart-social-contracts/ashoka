@@ -344,63 +344,76 @@ class PodManager:
                 self._print(f"❌ No GPUs found under ${max_price}/hr", force=True)
                 return False
             
-            # Sort by price (cheapest first) and select the best option
+            # Sort by price (cheapest first) and try each GPU until one succeeds
             affordable_gpus.sort(key=lambda x: x['price'])
-            selected_gpu = affordable_gpus[0]
-            
-            self._print(f"Selected GPU: {selected_gpu['name']} - ${selected_gpu['price']:.3f}/hr")
-            
-            # Create pod using RunPod SDK
+        
+            # Create pod using RunPod SDK - try each GPU until one succeeds
             pod_name = f"ashoka-{pod_type}-{int(time.time())}"
             image_name = self.config.get('IMAGE_NAME', 'docker.io/smartsocialcontracts/ashoka:latest')
-            volume_size = int(self.config.get('VOLUME_SIZE', '50'))  # GB for persistent storage
             container_disk = int(self.config.get('CONTAINER_DISK', '20'))  # GB for container disk
             
             self._print(f"Creating pod: {pod_name}")
             self._print(f"Image: {image_name}")
-            self._print(f"GPU: {selected_gpu['id']}")
-            self._print(f"Volume: {volume_size}GB")
             self._print(f"Container Disk: {container_disk}GB")
             
-            # Use the RunPod SDK to create the pod with proper parameters
-            result = runpod.create_pod(
-                name=pod_name,
-                image_name=image_name,
-                gpu_type_id=selected_gpu['id'],
-                cloud_type="COMMUNITY",  # Use community cloud for better pricing
-                gpu_count=1,
-                volume_in_gb=volume_size,  # Persistent storage
-                container_disk_in_gb=container_disk,  # Container disk
-                ports="5000/http,22/tcp",  # Flask app on 5000, SSH on 22
-                env={
-                    "FLASK_ENV": "production",
-                    "PYTHONPATH": "/workspace"
-                },
-                support_public_ip=True,
-                start_ssh=True
-            )
+            # Try each affordable GPU until one succeeds
+            for i, selected_gpu in enumerate(affordable_gpus):
+                try:
+                    self._print(f"\n🔄 Trying GPU {i+1}/{len(affordable_gpus)}: {selected_gpu['name']} - ${selected_gpu['price']:.3f}/hr")
+                    
+                    # Use the RunPod SDK to create the pod with proper parameters
+                    result = runpod.create_pod(
+                        name=pod_name,
+                        template_id="1fnzgryfq6",
+                        image_name=image_name,
+                        gpu_type_id=selected_gpu['id'],
+                        # cloud_type="COMMUNITY",  # Use community cloud for better pricing
+                        gpu_count=1,
+                        network_volume_id="74qwklf7z9",
+                        container_disk_in_gb=container_disk,  # Container disk
+                        support_public_ip=True,
+                        start_ssh=True
+                    )
+                    
+                    if self.verbose:
+                        self._print(f"🔍 Create result: {result}")
+                    
+                    # Extract pod ID from result
+                    pod_id = result.get('id') if isinstance(result, dict) else str(result)
+                    
+                    if pod_id:
+                        self._print(f"✅ Pod created successfully with {selected_gpu['name']}!")
+                        self._print(f"Pod ID: {pod_id}")
+                        
+                        # Generate pod URL
+                        pod_url = f"https://{pod_id}-5000.proxy.runpod.net"
+                        self._print(f"Pod URL: {pod_url}")
+                        
+                        if not self.verbose:
+                            print(pod_id)
+                        
+                        return True
+                    else:
+                        self._print(f"⚠️ Pod creation returned no ID for {selected_gpu['name']}, trying next GPU...")
+                        continue
+                        
+                except Exception as gpu_error:
+                    error_msg = str(gpu_error)
+                    if "no longer any instances available" in error_msg.lower():
+                        self._print(f"⚠️ {selected_gpu['name']} not available, trying next GPU...")
+                    elif "insufficient funds" in error_msg.lower():
+                        self._print(f"⚠️ Insufficient funds for {selected_gpu['name']}, trying next GPU...")
+                    else:
+                        self._print(f"⚠️ Error with {selected_gpu['name']}: {error_msg}")
+                        if self.verbose:
+                            self._print(f"Full error: {gpu_error}")
+                    
+                    # Continue to next GPU
+                    continue
             
-            if self.verbose:
-                self._print(f"🔍 Create result: {result}")
-            
-            # Extract pod ID from result
-            pod_id = result.get('id') if isinstance(result, dict) else str(result)
-            
-            if pod_id:
-                self._print(f"✅ Pod created successfully!")
-                self._print(f"Pod ID: {pod_id}")
-                
-                # Generate pod URL
-                pod_url = f"https://{pod_id}-5000.proxy.runpod.net"
-                self._print(f"Pod URL: {pod_url}")
-                
-                if not self.verbose:
-                    print(pod_id)
-                
-                return True
-            else:
-                self._print(f"❌ Pod creation failed: No pod ID returned", force=True)
-                return False
+            # If we get here, all GPUs failed
+            self._print(f"❌ All {len(affordable_gpus)} affordable GPUs failed. No pod could be created.", force=True)
+            return False
                 
         except Exception as e:
             self._print(f"❌ Deployment failed: {e}", force=True)
