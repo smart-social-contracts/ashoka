@@ -11,7 +11,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
-    
+      TIMEOUT_SECS: 60
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -26,8 +27,8 @@ jobs:
 
       - name: Get pod URL and test Flask server
         run: |
-          ./pod_manager.py main start --deploy-new-if-needed --verbose
-          
+          ./pod_manager.py main restart --deploy-new-if-needed --verbose
+
           POD_URL=$(./pod_manager.py main status --verbose 2>&1 | grep "Server Host:" | awk '{print "https://" $3}' || echo "")
           if [ -z "$POD_URL" ]; then
             echo "❌ Could not determine pod URL"
@@ -35,7 +36,7 @@ jobs:
           fi
           echo "🔍 Testing pod at: $POD_URL"
           
-          sleep 45
+          sleep $TIMEOUT_SECS
           
           curl -f --max-time 15 "$POD_URL/health" || curl -f --max-time 15 "$POD_URL/"
 
