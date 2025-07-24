@@ -31,6 +31,15 @@ ENV OLLAMA_HOME=/workspace/ollama
 WORKDIR /app
 # --- Clone Ashoka repository ---
 RUN git clone https://github.com/smart-social-contracts/ashoka.git
+WORKDIR /app/ashoka
+RUN git fetch origin && git checkout devin/1753388604-ashoka-rag-integration
+
+# --- PostgreSQL setup ---
+USER postgres
+RUN /etc/init.d/postgresql start && \
+    psql --command "CREATE USER ashoka_user WITH SUPERUSER PASSWORD 'ashoka_pass';" && \
+    createdb -O ashoka_user ashoka_db
+USER root
 
 # --- Python environment ---
 WORKDIR /app/ashoka
