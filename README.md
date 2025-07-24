@@ -1,58 +1,152 @@
-# ashoka
+# Ashoka
 
-An off-chain AI governor for GGG-compliant realms on the Internet Computer.
+An AI-powered question-answering system for Internet Computer Protocol realms. Ask questions about realm governance via HTTP API and get intelligent responses powered by LLMs and retrieval-augmented generation (RAG).
 
-## Quickstart
+## Quick Start
+
+```bash
+# Start the system with Docker Compose
+docker-compose up
+
+# Ask a question via HTTP POST
+curl -X POST http://localhost:5000/api/ask \
+  -H "Content-Type: application/json" \
+  -d '{
+    "realm_canister_id": "your-realm-id",
+    "question": "What is the current governance status?"
+  }'
+```
+
+## What Ashoka Does
+
+Ashoka enables you to ask natural language questions about Internet Computer realms and receive AI-generated answers that combine:
+
+1. **Live realm data** - Fetched directly from the realm's smart contract
+2. **Governance knowledge** - Retrieved from a curated knowledge base using RAG
+3. **AI reasoning** - Powered by Ollama LLM for intelligent synthesis
+
+## Architecture Overview
 
 ```
-docker run \
-  --name ashoka-container \
-  -v $(pwd)/workspace:/workspace \
-  -p 5000:5000 \
-  -p 22:22 \
-  -p 443:443 \
-  --shm-size=20g \
-  smartsocialcontracts/ashoka:latest
+                    ┌──────────────────┐
+                    │                  │
+                    │   User/Client   │
+                    │                  │
+                    └─────────┼─────────┘
+                             │
+                             ▼
+                    ┌──────────────────┐
+                    │                  │
+                    │   Ashoka API     │
+                    │   (Flask)        │
+                    └─────────┼─────────┘
+                             │
+        ┌────────────────┼────────────────┐
+        │                ▼                │
+        ▼           ┌──────────────────┐  ▼
+┌─────────────────┐ │                  │ ┌─────────────────┐
+│                 │ │   CLI Interface  │ │ Internet Computer│
+│   ChromaDB      │ │   (main.py)      │ │   Realms        │
+│   (RAG/Vector   │ └──────────────────┘ └─────────────────┘
+│   Database)     │         │
+└─────────────────┘         ▼
+        │           ┌──────────────┐
+        ▼           │              │
+┌─────────────────┐ │   Ollama     │
+│   Governance    │ │   (LLM)      │
+│   Knowledge     │ └──────────────┘
+│   Base          │         │
+└─────────────────┘         ▼
+                    ┌──────────────┐
+                    │  AI Governor │
+                    │  Proposals   │
+                    │  (MCP)       │
+                    └──────────────┘
 ```
 
-## Overview
+**Key Components:**
+- **Ashoka API**: Flask-based HTTP API for external integrations
+- **CLI Interface**: Command-line tools for governance operations
+- **ChromaDB**: Vector database for RAG-based knowledge retrieval
+- **Ollama**: Local LLM service for AI reasoning and proposal generation
+- **IC Realms**: Internet Computer Protocol governance canisters
 
-ashoka connects to decentralized realms and proposes improvements in governance by leveraging AI models. It uses a local or remote LLM (served via Ollama) and connects to a GGG-compliant realm canister.
+## Core Features
+
+- **HTTP API** for easy integration (`/api/ask` endpoint)
+- **Realm Integration** via Internet Computer Protocol
+- **RAG System** with ChromaDB for governance knowledge retrieval
+- **Streaming responses** for real-time interaction
+- **Docker deployment** with multi-service architecture
 
 ## Installation
 
-1. Clone this repository
-2. Install dependencies: `pip install -r requirements.txt`
-3. Make the main script executable: `chmod +x ashoka/main.py`
-
-## Usage
-
-ashoka provides two main commands:
-
-### Initialize an AI Governor
+### Using Docker Compose (Recommended)
 
 ```bash
-ashoka create [ollama_url]
+# Clone the repository
+git clone <repository-url>
+cd ashoka
+
+# Start all services (ChromaDB, Ollama, Ashoka API)
+docker-compose up
 ```
 
-This command:
-- Connects to an Ollama LLM at the provided URL (defaults to http://localhost:11434)
-- Sends training prompts to make the model behave as a digital governor
-- Teaches it the high-level purpose of GGG (Generalized Global Governance)
-
-### Run the AI Governor on a Realm
+### Manual Installation
 
 ```bash
-ashoka run [ollama_url] <realm_canister_id> [--mcp-only]
+# Install Python dependencies
+pip install -r requirements.txt
+
+# Start ChromaDB and Ollama services separately
+# Then run the API server
+python api.py
 ```
 
-This command:
-- Connects to the realm's canister using `ic-py`
-- Queries the realm's public interface using GGG endpoints
-- Sends that context to the LLM
-- Receives a JSON object containing a proposal
-- Wraps the proposal in an MCP ProposalOfferMessage
-- Submits the proposal back to the canister (unless --mcp-only is specified)
+## HTTP API Usage
+
+### Ask Questions About a Realm
+
+**Endpoint:** `POST /api/ask`
+
+```bash
+curl -X POST http://localhost:5000/api/ask \
+  -H "Content-Type: application/json" \
+  -d '{
+    "realm_canister_id": "rrkah-fqaaa-aaaaa-aaaaq-cai",
+    "question": "What are the current treasury allocations?"
+  }'
+```
+
+**Request Parameters:**
+- `realm_canister_id` (required) - The IC realm canister ID
+- `question` (required) - Your question about the realm
+- `stream` (optional) - Set to `true` for streaming responses
+- `ollama_url` (optional) - Custom Ollama URL (defaults to localhost:11434)
+
+**Response:**
+```json
+{
+  "success": true,
+  "answer": "Based on the realm data, the current treasury allocations are...",
+  "realm_data": {...},
+  "rag_context": [...]
+}
+```
+
+### Streaming Responses
+
+For real-time responses, set `stream: true`:
+
+```bash
+curl -X POST http://localhost:5000/api/ask \
+  -H "Content-Type: application/json" \
+  -d '{
+    "realm_canister_id": "your-realm-id",
+    "question": "Explain the governance structure",
+    "stream": true
+  }'
+```
 
 ## Model Context Protocol (MCP)
 

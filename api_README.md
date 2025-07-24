@@ -1,79 +1,120 @@
-# Ashoka HTTP API Wrapper
+# Ashoka HTTP API
 
-This API wrapper provides HTTP endpoints for interacting with Ashoka, allowing you to use its capabilities via REST API calls instead of the command line interface.
+HTTP API for asking questions about Internet Computer Protocol realms. Get AI-powered answers that combine live realm data with governance knowledge.
 
-## Setup
+## Quick Start
 
-1. Make sure all dependencies are installed:
-   ```bash
-   pip install -r requirements.txt
-   pip install flask requests
-   ```
+### Using Docker Compose (Recommended)
+```bash
+# Start all services (ChromaDB, Ollama, Ashoka API)
+docker-compose up
 
-2. Make the API script executable:
-   ```bash
-   chmod +x api.py
-   ```
+# API will be available at http://localhost:5000
+```
 
-3. Start the API server:
-   ```bash
-   python api.py
-   ```
+### Manual Setup
+```bash
+# Install dependencies
+pip install -r requirements.txt
 
-The server will start on `http://localhost:5000` by default.
+# Start the API server
+python api.py
+```
+
+## Main Use Case: Ask Questions About Realms
+
+The primary endpoint `/api/ask` lets you ask natural language questions about IC realms and get intelligent responses.
 
 ## API Endpoints
 
+### 🔥 Primary Endpoint: Ask Questions About Realms
+
+```
+POST /api/ask
+```
+
+**Description:** Ask natural language questions about Internet Computer realms and get AI-powered answers.
+
+**Request Body:**
+```json
+{
+  "realm_canister_id": "rrkah-fqaaa-aaaaa-aaaaq-cai",  // Required: IC realm canister ID
+  "question": "What are the current treasury allocations?",  // Required: Your question
+  "stream": false,  // Optional: Set to true for streaming responses
+  "ollama_url": "http://localhost:11434"  // Optional: Custom Ollama URL
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "answer": "Based on the realm data, the current treasury allocations are...",
+  "realm_data": {
+    "name": "Example Realm",
+    "status": "active",
+    // ... other realm information
+  },
+  "rag_context": [
+    {
+      "content": "Relevant governance knowledge...",
+      "source": "governance_docs"
+    }
+  ]
+}
+```
+
+**Example Usage:**
+```bash
+curl -X POST http://localhost:5000/api/ask \
+  -H "Content-Type: application/json" \
+  -d '{
+    "realm_canister_id": "your-realm-id",
+    "question": "How does the voting mechanism work?"
+  }'
+```
+
 ### Health Check
 ```
-GET /health
+GET /
 ```
 Simple health check to verify the API is running.
 
-### Initialize AI Governor
+### RAG System Endpoints
+
+#### Add Governance Documents
 ```
-POST /api/create
+POST /api/rag-embed
 ```
 **Request Body:**
 ```json
 {
-  "ollama_url": "http://localhost:11434"  // Optional, defaults to this value
+  "documents": [
+    {
+      "content": "Governance document content...",
+      "metadata": {"source": "governance_manual"}
+    }
+  ]
 }
 ```
 
-### Run AI Governor on a Realm
+#### Query RAG System Directly
 ```
-POST /api/run
+POST /api/rag-query
 ```
 **Request Body:**
 ```json
 {
-  "realm_canister_id": "rrkah-fqaaa-aaaaa-aaaaq-cai",  // Required
-  "ollama_url": "http://localhost:11434",  // Optional
-  "mcp_only": true  // Optional, defaults to false
+  "query": "treasury management",
+  "n_results": 3
 }
 ```
 
-### Evaluate AI Governor
+#### RAG Health Check
 ```
-POST /api/evaluate
+GET /api/rag-health
 ```
-**Request Body:**
-```json
-{
-  "scenario_file": "tests/scenarios/treasury_allocation.txt",  // Required
-  "ollama_url": "http://localhost:11434",  // Optional
-  "use_llm_evaluator": false,  // Optional
-  "mock": true,  // Optional
-  "submit_mock": false,  // Optional
-  "output_file": "evaluation_results.json"  // Optional
-}
-```
-
-### Benchmark AI Governor
-```
-POST /api/benchmark
-```
+Check the status of ChromaDB and RAG components.
 **Request Body:**
 ```json
 {
