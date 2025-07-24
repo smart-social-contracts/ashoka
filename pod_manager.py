@@ -210,7 +210,8 @@ class PodManager:
         except Exception as e:
             self._print(f"❌ Start failed: {e}", force=True)
             if deploy_new_if_needed:
-                self._print("Start command failed, attempting to deploy a new pod...")
+                self._print("Start command failed, terminating current pod and attempting to deploy a new pod...")
+                self.terminate_pod(pod_type)
                 return self.deploy_pod(pod_type)
             return False
     
