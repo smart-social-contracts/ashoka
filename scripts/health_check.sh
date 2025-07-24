@@ -22,7 +22,7 @@ echo "🔍 Health checking $POD_URL for up to $BOOTUP_TIMEOUT_SEC seconds..."
 start_time=$(date +%s)
 end_time=$((start_time + BOOTUP_TIMEOUT_SEC))
 
-# Poll every second
+# Poll every SLEEP_INTERVAL seconds
 while [ $(date +%s) -lt $end_time ]; do
     current_time=$(date +%s)
     elapsed=$((current_time - start_time))
@@ -38,8 +38,8 @@ while [ $(date +%s) -lt $end_time ]; do
         exit 0
     fi
     
-    # Wait 1 second before next attempt (unless we're at the end)
-    if [ $(date +%s) -lt $((end_time - 1)) ]; then
+    # Wait SLEEP_INTERVAL seconds before next attempt (unless we're at the end)
+    if [ $(date +%s) -lt $((end_time - $SLEEP_INTERVAL)) ]; then
         sleep $SLEEP_INTERVAL
     fi
 done
