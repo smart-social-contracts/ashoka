@@ -48,9 +48,10 @@ class PodManager:
         
         # Set fallback defaults for template-based deployment
         config.setdefault('CONTAINER_DISK', '20')
-        config.setdefault('IMAGE_NAME', 'docker.io/smartsocialcontracts/ashoka:latest')
+        config.setdefault('IMAGE_NAME_BASE', 'docker.io/smartsocialcontracts/ashoka')
         config.setdefault('VOLUME_ID_MAIN', '74qwk1f72z9')  # ashoka1_main_volume
         config.setdefault('VOLUME_ID_BRANCH', 'ipy89pj504')  # ashoka1_branch_volume
+        config.setdefault('INACTIVITY_TIMEOUT_SECONDS', '3600')
         
         return config
     
@@ -210,7 +211,8 @@ class PodManager:
         except Exception as e:
             self._print(f"❌ Start failed: {e}", force=True)
             if deploy_new_if_needed:
-                self._print("Start command failed, attempting to deploy a new pod...")
+                self._print("Start command failed, terminating current pod and attempting to deploy a new pod...")
+                self.terminate_pod(pod_type)
                 return self.deploy_pod(pod_type)
             return False
     
@@ -389,7 +391,7 @@ class PodManager:
         
             # Create pod using RunPod SDK - try each GPU until one succeeds
             pod_name = f"ashoka-{pod_type}-{int(time.time())}"
-            image_name = self.config.get('IMAGE_NAME', 'docker.io/smartsocialcontracts/ashoka:latest')
+            image_name = self.config.get('IMAGE_NAME_BASE') + ':' + pod_type
             container_disk = int(self.config.get('CONTAINER_DISK', '20'))  # GB for container disk
             
             self._print(f"Creating pod: {pod_name}")
@@ -400,7 +402,9 @@ class PodManager:
             for i, selected_gpu in enumerate(affordable_gpus):
                 try:
                     self._print(f"\n🔄 Trying GPU {i+1}/{len(affordable_gpus)}: {selected_gpu['name']} - ${selected_gpu['price']:.3f}/hr")
-                    
+
+                    # TODO: set INACTIVITY_TIMEOUT_SECONDS as environment variable for branch pod only (main should never shutdown...)
+
                     # Use the RunPod SDK to create the pod with proper parameters
                     result = runpod.create_pod(
                         name=pod_name,
@@ -412,7 +416,8 @@ class PodManager:
                         network_volume_id="74qwklf7z9",
                         container_disk_in_gb=container_disk,  # Container disk
                         support_public_ip=True,
-                        start_ssh=True
+                        start_ssh=True,
+                        env={'INACTIVITY_TIMEOUT_SECONDS': self.config.get('INACTIVITY_TIMEOUT_SECONDS')} if pod_type == "branch" else None
                     )
                     
                     if self.verbose:

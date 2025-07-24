@@ -1,4 +1,3 @@
-
 # ashoka
 
 An off-chain AI governor for GGG-compliant realms on the Internet Computer.

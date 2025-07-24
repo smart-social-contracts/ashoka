@@ -4,26 +4,54 @@ on:
   push:
     branches:
       - main
+      - '**'  # All branches
   workflow_dispatch:
-    branches:
-      - main
 
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Install dependencies
+        run: pip install requests runpod
+
       - name: Log in to Docker Hub using token
         run: echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u smartsocialcontracts --password-stdin
 
-      - name: Build Docker image
-        run: docker build -t smartsocialcontracts/ashoka:latest .
+      - name: Determine image tags
+        id: tags
+        run: |
+          if [ "${{ github.ref_name }}" = "main" ]; then
+            echo "tags=smartsocialcontracts/ashoka:latest smartsocialcontracts/ashoka:main" >> $GITHUB_OUTPUT
+            echo "pod_type=main" >> $GITHUB_OUTPUT
+          else
+            echo "tags=smartsocialcontracts/ashoka:branch" >> $GITHUB_OUTPUT
+            echo "pod_type=branch" >> $GITHUB_OUTPUT
+          fi
 
-      - name: Push Docker image
-        run: docker push smartsocialcontracts/ashoka:latest
+      - name: Build and tag Docker images
+        run: |
+          for tag in ${{ steps.tags.outputs.tags }}; do
+            echo "Building and tagging: $tag"
+            docker build -t "$tag" .
+          done
+
+      - name: Push Docker images
+        run: |
+          for tag in ${{ steps.tags.outputs.tags }}; do
+            echo "Pushing: $tag"
+            docker push "$tag"
+          done
 
       - name: Restart pod
-        run: ./restart_pod.sh
+        run: ./pod_manager.py ${{ steps.tags.outputs.pod_type }} restart --deploy-new-if-needed --verbose

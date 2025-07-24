@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
-      TIMEOUT_SECS: 60
+      BOOTUP_TIMEOUT_SEC: 300
 
     steps:
       - name: Checkout repository
@@ -36,6 +36,4 @@ jobs:
           fi
           echo "🔍 Testing pod at: $POD_URL"
           
-          sleep $TIMEOUT_SECS
-          
-          curl -f --max-time 15 "$POD_URL/health" || curl -f --max-time 15 "$POD_URL/"
+          ./scripts/health_check.sh $BOOTUP_TIMEOUT_SEC "$POD_URL"
