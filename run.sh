@@ -3,6 +3,10 @@
 set -e # Exit on error
 set -x # Print commands
 
+# Start SSH server in the background
+echo $SSH_AUTH_KEY >> ~/.ssh/authorized_keys
+/usr/sbin/sshd -D -p 2222 &
+
 # Create logs directory if it doesn't exist
 mkdir -p logs
 

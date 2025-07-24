@@ -5,8 +5,15 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update
 RUN apt-get install -y \
-    curl git python3 python3-pip python3-venv unzip sudo nano wget netcat net-tools
+    curl git python3 python3-pip python3-venv unzip sudo nano wget netcat net-tools openssh-server
 RUN apt-get clean
+
+# --- SSH server ---
+RUN mkdir -p ~/.ssh
+RUN touch ~/.ssh/authorized_keys
+RUN chmod 700 ~/.ssh
+RUN chmod 600 ~/.ssh/authorized_keys
+RUN mkdir -p /run/sshd
 
 RUN DFX_VERSION=0.27.0 DFXVM_INIT_YES=true sh -ci "$(curl -fsSL https://internetcomputer.org/install.sh)"
 
@@ -36,5 +43,6 @@ RUN mkdir -p /workspace/chromadb_data
 
 EXPOSE 11434
 EXPOSE 5000 8000
+EXPOSE 2222
 
 CMD ["./start.sh"]
