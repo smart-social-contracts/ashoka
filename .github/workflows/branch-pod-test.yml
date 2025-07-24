@@ -16,6 +16,9 @@ on:
 jobs:
   test-branch-pod:
     runs-on: ubuntu-latest
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+      BOOTUP_TIMEOUT_SEC: 300
     
     steps:
       - name: Checkout repository
@@ -29,15 +32,10 @@ jobs:
       - name: Install dependencies
         run: pip install requests runpod
 
-      - name: Set RunPod API key
-        run: echo "RUNPOD_API_KEY=${{ secrets.RUNPOD_API_KEY }}" >> $GITHUB_ENV
-
-      - name: Start branch pod
-        run: ./pod_manager.py branch start --deploy-new-if-needed --verbose
-
       - name: Get pod URL and test Flask server
         run: |
-          # Get the pod URL dynamically from the pod manager
+          ./pod_manager.py branch restart --deploy-new-if-needed --verbose
+
           POD_URL=$(./pod_manager.py branch status --verbose 2>&1 | grep "Server Host:" | awk '{print "https://" $3}' || echo "")
           if [ -z "$POD_URL" ]; then
             echo "❌ Could not determine pod URL"
@@ -45,11 +43,7 @@ jobs:
           fi
           echo "🔍 Testing pod at: $POD_URL"
           
-          # Wait for pod to be ready
-          sleep 45
-          
-          # Test the Flask server
-          curl -f --max-time 15 "$POD_URL/health" || curl -f --max-time 15 "$POD_URL/"
+          ./scripts/health_check.sh $BOOTUP_TIMEOUT_SEC "$POD_URL"
 
       - name: Stop branch pod
         if: always()

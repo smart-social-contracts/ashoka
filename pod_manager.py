@@ -51,6 +51,7 @@ class PodManager:
         config.setdefault('IMAGE_NAME', 'docker.io/smartsocialcontracts/ashoka:latest')
         config.setdefault('VOLUME_ID_MAIN', '74qwk1f72z9')  # ashoka1_main_volume
         config.setdefault('VOLUME_ID_BRANCH', 'ipy89pj504')  # ashoka1_branch_volume
+        config.setdefault('INACTIVITY_TIMEOUT_SECONDS', '3600')
         
         return config
     
@@ -401,7 +402,9 @@ class PodManager:
             for i, selected_gpu in enumerate(affordable_gpus):
                 try:
                     self._print(f"\n🔄 Trying GPU {i+1}/{len(affordable_gpus)}: {selected_gpu['name']} - ${selected_gpu['price']:.3f}/hr")
-                    
+
+                    # TODO: set INACTIVITY_TIMEOUT_SECONDS as environment variable for branch pod only (main should never shutdown...)
+
                     # Use the RunPod SDK to create the pod with proper parameters
                     result = runpod.create_pod(
                         name=pod_name,
@@ -413,7 +416,8 @@ class PodManager:
                         network_volume_id="74qwklf7z9",
                         container_disk_in_gb=container_disk,  # Container disk
                         support_public_ip=True,
-                        start_ssh=True
+                        start_ssh=True,
+                        env={'INACTIVITY_TIMEOUT_SECONDS': self.config.get('INACTIVITY_TIMEOUT_SECONDS')} if pod_type == "main" else None
                     )
                     
                     if self.verbose:
