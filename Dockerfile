@@ -5,7 +5,8 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update
 RUN apt-get install -y \
-    curl git python3 python3-pip python3-venv unzip sudo nano wget netcat net-tools openssh-server
+    curl git python3 python3-pip python3-venv unzip sudo nano wget netcat net-tools openssh-server \
+    postgresql postgresql-contrib
 RUN apt-get clean
 
 # --- SSH server ---

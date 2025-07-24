@@ -78,6 +78,17 @@ fi
 mkdir -p /app/chromadb_data
 chmod 777 /app/chromadb_data
 
+echo "Starting PostgreSQL..."
+service postgresql start
+sudo -u postgres createdb ashoka_db 2>/dev/null || echo "Database already exists"
+sudo -u postgres psql -d ashoka_db -c "CREATE USER ashoka_user WITH PASSWORD 'ashoka_pass';" 2>/dev/null || echo "User already exists"
+sudo -u postgres psql -d ashoka_db -c "GRANT ALL PRIVILEGES ON DATABASE ashoka_db TO ashoka_user;" 2>/dev/null || echo "Privileges already granted"
+
+if [ -f "/app/ashoka/database/schema.sql" ]; then
+    echo "Initializing database schema..."
+    sudo -u postgres psql -d ashoka_db -f /app/ashoka/database/schema.sql 2>/dev/null || echo "Schema already initialized"
+fi
+
 # Start ChromaDB server in background
 echo "Starting ChromaDB server..."
 python3 -c "import chromadb.cli.cli; chromadb.cli.cli.app()" run --host 0.0.0.0 --port 8000 --path /app/chromadb_data 2>&1 | tee -a logs/chromadb.log &

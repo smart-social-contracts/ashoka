@@ -13,6 +13,7 @@ import os
 import time
 import threading
 from pathlib import Path
+from database.db_client import DatabaseClient
 
 try:
     from rag.retrieval import RAGRetriever
@@ -49,6 +50,14 @@ if RAG_AVAILABLE:
         rag_retriever = RAGRetriever(environment="prod")
     except Exception as e:
         logger.error(f"Warning: Failed to initialize RAG retriever: {e}")
+
+db_client = None
+try:
+    db_client = DatabaseClient()
+    logger.info("Database client initialized successfully")
+except Exception as e:
+    logger.warning(f"Failed to initialize database client: {e}")
+    db_client = None
 
 def update_last_request_time():
     """Update the timestamp of the last request."""
@@ -446,8 +455,227 @@ def handle_streaming_ask(realm_canister_id, question, ollama_url):
         }
     )
 
+def load_ashoka_persona() -> str:
+    """Load Ashoka persona prompt from file."""
+    try:
+        persona_path = Path(__file__).parent / "cli" / "prompts" / "governor_init.txt"
+        with open(persona_path, 'r') as f:
+            return f.read().strip()
+    except Exception as e:
+        logger.error(f"Failed to load Ashoka persona: {e}")
+        return "You are Ashoka, an AI governor designed to improve decentralized governance systems."
+
+def load_realm_fixture(realm_principal: str) -> dict:
+    """Load realm data from fixture files."""
+    try:
+        fixtures_dir = Path(__file__).parent / "fixtures"
+        
+        for fixture_file in fixtures_dir.glob("*.json"):
+            with open(fixture_file, 'r') as f:
+                realm_data = json.load(f)
+                if realm_data.get('realm_principal') == realm_principal:
+                    return realm_data
+        
+        sample_path = fixtures_dir / "realm_sample.json"
+        if sample_path.exists():
+            with open(sample_path, 'r') as f:
+                realm_data = json.load(f)
+                realm_data['realm_principal'] = realm_principal
+                return realm_data
+        
+        return {
+            "realm_principal": realm_principal,
+            "name": f"Realm {realm_principal}",
+            "treasury": {"total_funds": 100000, "currency": "USDC"},
+            "governance": {"voting_system": "token_weighted", "proposal_threshold": 1000},
+            "active_proposals": [],
+            "community_stats": {"total_members": 100, "active_voters": 25}
+        }
+    except Exception as e:
+        logger.error(f"Failed to load realm fixture: {e}")
+        return {"realm_principal": realm_principal, "name": f"Realm {realm_principal}"}
+
+def handle_non_streaming_ask_new(user_principal: str, realm_principal: str, question: str, ollama_url: str):
+    """Handle non-streaming LLM requests with new parameters."""
+    try:
+        persona_prompt = load_ashoka_persona()
+        
+        realm_data = load_realm_fixture(realm_principal)
+        
+        realm_context = f"""
+== Realm Information ==
+Name: {realm_data.get('name', 'Unknown Realm')}
+Principal: {realm_data.get('realm_principal', realm_principal)}
+Treasury: {realm_data.get('treasury', {}).get('total_funds', 0)} {realm_data.get('treasury', {}).get('currency', 'tokens')}
+Active Proposals: {len(realm_data.get('active_proposals', []))}
+Community Members: {realm_data.get('community_stats', {}).get('total_members', 0)}
+
+== User Question ==
+{question}
+
+== Instructions ==
+Based on the realm information above and your role as an AI governor, provide a thoughtful response to the user's question. Focus on practical governance advice that would benefit this specific realm.
+"""
+        
+        full_prompt = f"{persona_prompt}\n\n{realm_context}"
+        
+        rag_context = ""
+        if rag_retriever:
+            try:
+                contexts = rag_retriever.retrieve_context(question, n_results=3)
+                if contexts:
+                    rag_context = "\n\n== Relevant Governance Knowledge ==\n"
+                    for i, ctx in enumerate(contexts[:3]):
+                        rag_context += f"{i+1}. {ctx.get('content', '')}\n"
+                    full_prompt += rag_context
+            except Exception as e:
+                logger.warning(f"Failed to retrieve RAG context: {e}")
+        
+        ai_response = None
+        
+        if str(os.environ.get('ASHOKA_USE_LLM')).lower() == 'true':
+            logger.info('Using LLM for response generation')
+            
+            try:
+                from cli.ollama_client import OllamaClient
+                ollama_client = OllamaClient(ollama_url)
+                ai_response = ollama_client.send_prompt(full_prompt)
+                logger.info("Generated AI response using Ollama")
+            except Exception as e:
+                logger.error(f"Failed to use Ollama client: {e}")
+                ai_response = "I apologize, but I'm currently unable to process your request due to a technical issue. Please try again later."
+        else:
+            ai_response = f"""Based on the governance context for {realm_data.get('name', 'your realm')}, here are my recommendations:
+
+For a realm with {realm_data.get('community_stats', {}).get('total_members', 0)} members and {realm_data.get('treasury', {}).get('total_funds', 0)} {realm_data.get('treasury', {}).get('currency', 'tokens')} in treasury, the key governance priorities should focus on:
+
+1. **Community Engagement**: With {realm_data.get('community_stats', {}).get('active_voters', 0)} active voters, increasing participation through better communication and incentives is crucial.
+
+2. **Treasury Management**: Proper allocation and oversight of the {realm_data.get('treasury', {}).get('total_funds', 0)} {realm_data.get('treasury', {}).get('currency', 'tokens')} treasury requires transparent processes and community input.
+
+3. **Proposal Process**: Streamlining the proposal and voting process to ensure efficient decision-making while maintaining democratic principles.
+
+This is a demonstration response. Enable ASHOKA_USE_LLM=true for full AI-powered responses."""
+        
+        conversation_id = None
+        if db_client:
+            try:
+                metadata = {
+                    "ollama_url": ollama_url,
+                    "realm_data": realm_data,
+                    "rag_context_used": bool(rag_context)
+                }
+                conversation_id = db_client.store_conversation(
+                    user_principal=user_principal,
+                    realm_principal=realm_principal,
+                    question=question,
+                    response=ai_response,
+                    prompt_context=full_prompt,
+                    metadata=metadata
+                )
+                logger.info(f"Stored conversation with ID: {conversation_id}")
+            except Exception as e:
+                logger.error(f"Failed to store conversation: {e}")
+        
+        response = {
+            "success": True,
+            "ai_response": ai_response,
+            "conversation_id": conversation_id,
+            "realm_data": realm_data
+        }
+        
+        return jsonify(response)
+        
+    except Exception as e:
+        logger.error(f"Error in handle_non_streaming_ask_new: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+def handle_streaming_ask_new(user_principal: str, realm_principal: str, question: str, ollama_url: str):
+    """Handle streaming LLM requests with new parameters."""
+    from flask import Response
+    
+    def generate_streaming_response():
+        try:
+            persona_prompt = load_ashoka_persona()
+            realm_data = load_realm_fixture(realm_principal)
+            
+            realm_context = f"""
+== Realm Information ==
+Name: {realm_data.get('name', 'Unknown Realm')}
+Principal: {realm_data.get('realm_principal', realm_principal)}
+Treasury: {realm_data.get('treasury', {}).get('total_funds', 0)} {realm_data.get('treasury', {}).get('currency', 'tokens')}
+
+== User Question ==
+{question}
+"""
+            
+            full_prompt = f"{persona_prompt}\n\n{realm_context}"
+            
+            from cli.ollama_client import OllamaClient
+            ollama_client = OllamaClient(ollama_url)
+            
+            response = ollama_client.send_prompt_streaming(full_prompt)
+            
+            full_response = ""
+            for line in response.iter_lines(decode_unicode=True):
+                if line:
+                    try:
+                        chunk_data = json.loads(line)
+                        content = chunk_data.get('response', '')
+                        
+                        if content:
+                            full_response += content
+                            sse_data = json.dumps({"content": content})
+                            yield f"data: {sse_data}\n\n"
+                        
+                        if chunk_data.get('done', False):
+                            if db_client:
+                                try:
+                                    metadata = {
+                                        "ollama_url": ollama_url,
+                                        "realm_data": realm_data,
+                                        "streaming": True
+                                    }
+                                    conversation_id = db_client.store_conversation(
+                                        user_principal=user_principal,
+                                        realm_principal=realm_principal,
+                                        question=question,
+                                        response=full_response,
+                                        prompt_context=full_prompt,
+                                        metadata=metadata
+                                    )
+                                    final_data = json.dumps({"conversation_id": conversation_id})
+                                    yield f"data: {final_data}\n\n"
+                                except Exception as e:
+                                    logger.error(f"Failed to store streaming conversation: {e}")
+                            break
+                            
+                    except json.JSONDecodeError:
+                        continue
+                        
+            yield "data: [DONE]\n\n"
+            
+        except Exception as e:
+            logger.error(f"Error in streaming response: {str(e)}")
+            error_data = json.dumps({"error": str(e)})
+            yield f"data: {error_data}\n\n"
+    
+    return Response(
+        generate_streaming_response(),
+        mimetype='text/event-stream',
+        headers={
+            'Cache-Control': 'no-cache',
+            'Connection': 'keep-alive',
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Headers': 'Content-Type'
+        }
+    )
+
 def handle_non_streaming_ask(realm_canister_id, question, ollama_url):
-    """Handle non-streaming LLM requests (existing logic)."""
+    """Handle non-streaming LLM requests (legacy function for backward compatibility)."""
     command = ['python', 'cli/main.py', 'ask', '--realm-id', realm_canister_id, '--ollama-url', ollama_url, question]
     logger.info(f'Command: {command}')
     
@@ -521,13 +749,13 @@ def ask():
         data = request.json or {}
         
         # Required parameters
-        realm_canister_id = data.get('realm_canister_id')
-        if not realm_canister_id:
-            # Try to get realm ID from environment variable
-            realm_canister_id = os.environ.get('ASHOKA_REALM_ID')
-            if not realm_canister_id:
-                return jsonify({"success": False, "error": "realm_canister_id is required and ASHOKA_REALM_ID environment variable is not set"}), 400
-            logger.info(f"Using realm canister ID from environment: {realm_canister_id}")
+        user_principal = data.get('user_principal')
+        if not user_principal:
+            return jsonify({"success": False, "error": "user_principal is required"}), 400
+        
+        realm_principal = data.get('realm_principal')
+        if not realm_principal:
+            return jsonify({"success": False, "error": "realm_principal is required"}), 400
         
         question = data.get('question')
         if not question:
@@ -537,12 +765,12 @@ def ask():
         
         ollama_url = data.get('ollama_url', 'http://localhost:11434')
         
-        logger.info(f"API: Asking question about realm {realm_canister_id}, streaming: {stream_requested}")
+        logger.info(f"API: Asking question about realm {realm_principal} from user {user_principal}, streaming: {stream_requested}")
         
         if stream_requested:
-            return handle_streaming_ask(realm_canister_id, question, ollama_url)
+            return handle_streaming_ask_new(user_principal, realm_principal, question, ollama_url)
         else:
-            return handle_non_streaming_ask(realm_canister_id, question, ollama_url)
+            return handle_non_streaming_ask_new(user_principal, realm_principal, question, ollama_url)
         
     except Exception as e:
         logger.error(f"Error running CLI command: {str(e)}")
@@ -605,9 +833,49 @@ def rag_health():
     
     try:
         health_status = rag_retriever.health_check()
+        
+        if db_client:
+            health_status["database"] = db_client.health_check()
+        else:
+            health_status["database"] = False
+            
         return jsonify({
             "status": "success",
             "health": health_status
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/conversations/<int:conversation_id>', methods=['GET'])
+def get_conversation(conversation_id):
+    """Get a specific conversation by ID."""
+    if not db_client:
+        return jsonify({"error": "Database not initialized"}), 500
+    
+    try:
+        conversation = db_client.get_conversation(conversation_id)
+        if conversation:
+            return jsonify({
+                "status": "success",
+                "conversation": conversation
+            })
+        else:
+            return jsonify({"error": "Conversation not found"}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/conversations/user/<user_principal>', methods=['GET'])
+def get_user_conversations(user_principal):
+    """Get conversations for a specific user."""
+    if not db_client:
+        return jsonify({"error": "Database not initialized"}), 500
+    
+    try:
+        limit = request.args.get('limit', 10, type=int)
+        conversations = db_client.get_conversations_by_user(user_principal, limit)
+        return jsonify({
+            "status": "success",
+            "conversations": conversations
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
