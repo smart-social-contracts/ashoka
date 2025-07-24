@@ -14,6 +14,7 @@ fi
 
 BOOTUP_TIMEOUT_SEC=$1
 POD_URL=$2
+SLEEP_INTERVAL=10
 
 echo "🔍 Health checking $POD_URL for up to $BOOTUP_TIMEOUT_SEC seconds..."
 
@@ -39,7 +40,7 @@ while [ $(date +%s) -lt $end_time ]; do
     
     # Wait 1 second before next attempt (unless we're at the end)
     if [ $(date +%s) -lt $((end_time - 1)) ]; then
-        sleep 1
+        sleep $SLEEP_INTERVAL
     fi
 done
 
