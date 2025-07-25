@@ -5,7 +5,8 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update
 RUN apt-get install -y \
-    curl git python3 python3-pip python3-venv unzip sudo nano wget netcat net-tools openssh-server
+    curl git python3 python3-pip python3-venv unzip sudo nano wget netcat net-tools openssh-server \
+    postgresql postgresql-contrib
 RUN apt-get clean
 
 # --- SSH server ---
@@ -30,6 +31,15 @@ ENV OLLAMA_HOME=/workspace/ollama
 WORKDIR /app
 # --- Clone Ashoka repository ---
 RUN git clone https://github.com/smart-social-contracts/ashoka.git
+WORKDIR /app/ashoka
+RUN git fetch origin && git checkout devin/1753388604-ashoka-rag-integration
+
+# --- PostgreSQL setup ---
+USER postgres
+RUN /etc/init.d/postgresql start && \
+    psql --command "CREATE USER ashoka_user WITH SUPERUSER PASSWORD 'ashoka_pass';" && \
+    createdb -O ashoka_user ashoka_db
+USER root
 
 # --- Python environment ---
 WORKDIR /app/ashoka

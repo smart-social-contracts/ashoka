@@ -224,8 +224,8 @@ class PodManager:
         pod_id, server_host = self._find_pod_by_type(pod_type)
         
         if not pod_id:
-            self._print(f"❌ No {pod_type} pod found")
-            return False
+            self._print(f"❌ No {pod_type} pod found. No action needed.")
+            return True
         
         self._print(f"Pod ID: {pod_id}")
         self._print(f"Server Host: {server_host}")
