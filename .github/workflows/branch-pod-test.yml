@@ -6,12 +6,8 @@ on:
     workflows: ["Build and Push to Docker Hub"]
     types:
       - completed
-    branches:
-      - develop
-      - staging
-      - feature/*
-      - fix/*
-      - hotfix/*
+    branches-ignore:
+      - main
   pull_request:
     branches:
       - main
