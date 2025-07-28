@@ -6,7 +6,9 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update
 RUN apt-get install -y \
     curl git python3 python3-pip python3-venv unzip sudo nano wget netcat net-tools openssh-server \
-    postgresql postgresql-contrib
+    postgresql postgresql-contrib \
+    pgadmin4 pgadmin4-web \
+    apache2
 RUN apt-get clean
 
 # --- SSH server ---
@@ -52,7 +54,9 @@ RUN mkdir -p /workspace/chromadb_data
 # This prevents duplicate installations and allows for faster container restarts
 
 EXPOSE 11434
-EXPOSE 5000 8000
+EXPOSE 5000
+EXPOSE 8000
 EXPOSE 2222
+EXPOSE 80
 
 CMD ["./start.sh"]
