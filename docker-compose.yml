@@ -21,7 +21,7 @@ services:
     ports:
       - "5000:5000"
       - "11434:11434"
-      - "80:80"
+      - "5050:5050"
     depends_on:
       chromadb:
         condition: service_healthy

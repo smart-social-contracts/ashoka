@@ -101,17 +101,7 @@ fi
 
 # Setup and start pgAdmin4
 echo "Setting up pgAdmin4..."
-python3 setup_pgadmin.py 2>&1 | tee -a logs/pgadmin_setup.log
-
-echo "Starting Apache for pgAdmin4..."
-# Enable required Apache modules
-a2enmod wsgi headers rewrite
-# Copy pgAdmin4 Apache configuration
-cp pgadmin4.conf /etc/apache2/sites-available/
-a2ensite pgadmin4
-a2dissite 000-default
-# Start Apache in background
-apache2ctl start 2>&1 | tee -a logs/apache.log &
+./start_pgadmin.sh
 
 # Start ChromaDB server in background
 echo "Starting ChromaDB server..."
