@@ -17,7 +17,10 @@ RUN apt-get install -y --fix-missing \
 RUN curl -fsS https://www.pgadmin.org/static/packages_pgadmin_org.pub | gpg --dearmor -o /usr/share/keyrings/packages-pgadmin-org.gpg
 RUN echo "deb [signed-by=/usr/share/keyrings/packages-pgadmin-org.gpg] https://ftp.postgresql.org/pub/pgadmin/pgadmin4/apt/$(lsb_release -cs) pgadmin4 main" > /etc/apt/sources.list.d/pgadmin4.list
 RUN apt-get update
-RUN apt-get install -y pgadmin4-web
+RUN apt-get install -y pgadmin4-web libapache2-mod-wsgi-py3
+
+# Configure Apache for pgAdmin4
+RUN a2enmod wsgi headers rewrite
 
 RUN apt-get clean
 

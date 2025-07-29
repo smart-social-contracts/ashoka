@@ -99,6 +99,20 @@ if [ -f "database/schema.sql" ]; then
     sudo -u postgres psql -d ashoka_db -f database/schema.sql 2>/dev/null || echo "Schema already initialized"
 fi
 
+# Setup and start pgAdmin4
+echo "Setting up pgAdmin4..."
+python3 setup_pgadmin.py 2>&1 | tee -a logs/pgadmin_setup.log
+
+echo "Starting Apache for pgAdmin4..."
+# Enable required Apache modules
+a2enmod wsgi headers rewrite
+# Copy pgAdmin4 Apache configuration
+cp pgadmin4.conf /etc/apache2/sites-available/
+a2ensite pgadmin4
+a2dissite 000-default
+# Start Apache in background
+apache2ctl start 2>&1 | tee -a logs/apache.log &
+
 # Start ChromaDB server in background
 echo "Starting ChromaDB server..."
 python3 -c "import chromadb.cli.cli; chromadb.cli.cli.app()" run --host 0.0.0.0 --port 8000 --path /app/chromadb_data 2>&1 | tee -a logs/chromadb.log &
