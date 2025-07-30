@@ -56,6 +56,10 @@ RUN /etc/init.d/postgresql start && \
     createdb -O ashoka_user ashoka_db
 USER root
 
+# --- Configure PostgreSQL for external connections ---
+RUN sed -i "s/#listen_addresses = 'localhost'/listen_addresses = '*'/" /etc/postgresql/14/main/postgresql.conf
+RUN echo 'host    all             all             0.0.0.0/0               scram-sha-256' >> /etc/postgresql/14/main/pg_hba.conf
+
 # --- Python environment ---
 WORKDIR /app/ashoka
 
