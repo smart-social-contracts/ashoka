@@ -81,6 +81,21 @@ class DatabaseClient:
             logger.error(f"Failed to get conversations by user: {e}")
             return []
     
+    def get_conversation_history(self, user_principal: str, realm_principal: str) -> List[Dict]:
+        """Get conversation history for a specific user+realm pair"""
+        try:
+            with self.connection.cursor(cursor_factory=RealDictCursor) as cursor:
+                cursor.execute("""
+                    SELECT question, response FROM conversations 
+                    WHERE user_principal = %s AND realm_principal = %s 
+                    ORDER BY created_at ASC
+                """, (user_principal, realm_principal))
+                
+                return [dict(row) for row in cursor.fetchall()]
+        except Exception as e:
+            logger.error(f"Failed to get conversation history: {e}")
+            return []
+    
     def health_check(self) -> bool:
         try:
             with self.connection.cursor() as cursor:

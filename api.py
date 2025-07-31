@@ -7,27 +7,24 @@ import requests
 from flask import Flask, request, jsonify, Response
 from pathlib import Path
 import traceback
+from database.db_client import DatabaseClient
 
 app = Flask(__name__)
 
 # Load Ashoka persona once at startup
 PERSONA = (Path(__file__).parent / "prompts" / "governor_init.txt").read_text()
 
-# Simple in-memory conversation storage (user_realm -> messages)
-conversations = {}
-
-def get_conversation_key(user_principal, realm_principal):
-    return f"{user_principal}:{realm_principal}"
+# Initialize database client
+db_client = DatabaseClient()
 
 def build_prompt(user_principal, realm_principal, question):
     """Build complete prompt with persona + history + question"""
-    key = get_conversation_key(user_principal, realm_principal)
-    history = conversations.get(key, [])
+    history = db_client.get_conversation_history(user_principal, realm_principal)
     
     # Build conversation history text
     history_text = ""
     for msg in history:
-        history_text += f"User: {msg['question']}\nAshoka: {msg['answer']}\n\n"
+        history_text += f"User: {msg['question']}\nAshoka: {msg['response']}\n\n"
     
     # Complete prompt
     prompt = f"{PERSONA}\n\n{history_text}User: {question}\nAshoka:"
@@ -35,10 +32,7 @@ def build_prompt(user_principal, realm_principal, question):
 
 def save_to_conversation(user_principal, realm_principal, question, answer):
     """Save Q&A to conversation history"""
-    key = get_conversation_key(user_principal, realm_principal)
-    if key not in conversations:
-        conversations[key] = []
-    conversations[key].append({"question": question, "answer": answer})
+    db_client.store_conversation(user_principal, realm_principal, question, answer)
 
 @app.route('/api/ask', methods=['POST'])
 def ask():

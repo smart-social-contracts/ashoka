@@ -58,6 +58,7 @@ COPY requirements-dev.txt requirements-dev.txt
 COPY api.py api.py
 COPY dfx.json dfx.json
 COPY prompts prompts
+COPY database database
 
 # Note: Python dependencies will be installed by run.sh into the persistent volume
 # This prevents duplicate installations and allows for faster container restarts
