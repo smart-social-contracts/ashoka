@@ -60,6 +60,7 @@ COPY dfx.json dfx.json
 COPY prompts prompts
 COPY database database
 COPY test_runner.py test_runner.py
+COPY test_runner.sh test_runner.sh
 COPY scripts scripts
 
 # Note: Python dependencies will be installed by run.sh into the persistent volume

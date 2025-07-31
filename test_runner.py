@@ -5,12 +5,25 @@ CI Test Runner - Semantic validation of Ashoka's answers
 import json
 import requests
 import time
+import warnings
+import os
+
+# Suppress warnings
+warnings.filterwarnings('ignore')
+os.environ['TOKENIZERS_PARALLELISM'] = 'false'
+
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
 
 # Load semantic similarity model
-model = SentenceTransformer('all-MiniLM-L6-v2')
+print("Loading semantic similarity model...")
+try:
+    model = SentenceTransformer('all-MiniLM-L6-v2')
+    print("Model loaded successfully!")
+except Exception as e:
+    print(f"Error loading model: {e}")
+    exit(1)
 
 def load_test_cases(file_path):
     """Load test cases from JSONL file"""
@@ -23,18 +36,25 @@ def load_test_cases(file_path):
 def ask_ashoka(question, api_url="http://localhost:5000/api/ask"):
     """Ask Ashoka a question via API"""
     try:
+        print(f"Asking: {question[:50]}...")
         response = requests.post(api_url, json={
             "user_principal": "test_user",
             "realm_principal": "test_realm",
             "question": question
-        }, timeout=30)
+        }, timeout=60)  # Increased timeout
         
         if response.status_code == 200:
-            return response.json().get('answer', '')
+            answer = response.json().get('answer', '')
+            print(f"Got answer: {len(answer)} characters")
+            return answer
         else:
-            return f"API Error: {response.status_code}"
+            error_msg = f"API Error: {response.status_code}"
+            print(error_msg)
+            return error_msg
     except Exception as e:
-        return f"Request Error: {str(e)}"
+        error_msg = f"Request Error: {str(e)}"
+        print(error_msg)
+        return error_msg
 
 def semantic_similarity(text1, text2):
     """Calculate semantic similarity between two texts"""

@@ -10,6 +10,7 @@ import traceback
 import threading
 import subprocess
 import uuid
+import os
 from database.db_client import DatabaseClient
 
 app = Flask(__name__)
@@ -118,12 +119,13 @@ def run_test_background(test_id):
         
         # Run the test_runner.py script with real-time output
         process = subprocess.Popen(
-            ['python', 'test_runner.py'],
+            ['./test_runner.sh'],  # -u for unbuffered output
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True,
-            bufsize=1,
-            universal_newlines=True
+            bufsize=0,  # Unbuffered
+            universal_newlines=True,
+            env=dict(os.environ, PYTHONUNBUFFERED='1')  # Force unbuffered
         )
         
         output_lines = []
