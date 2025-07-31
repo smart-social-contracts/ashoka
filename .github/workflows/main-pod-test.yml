@@ -29,7 +29,7 @@ jobs:
       - name: Install dependencies
         run: pip install requests runpod
 
-      - name: Get pod URL and test Flask server
+      - name: Get pod URL and run remote CI tests
         run: |
           ./pod_manager.py main restart --deploy-new-if-needed --verbose
 
@@ -41,5 +41,40 @@ jobs:
           echo "🔍 Testing pod at: $POD_URL"
           
           ./scripts/health_check.sh $BOOTUP_TIMEOUT_SEC "$POD_URL"
-
-          python test_runner.py
+          
+          # Start remote CI test
+          echo "🚀 Starting remote CI tests..."
+          TEST_RESPONSE=$(curl -s -X POST "$POD_URL/start-test")
+          TEST_ID=$(echo "$TEST_RESPONSE" | python3 -c "import sys, json; print(json.load(sys.stdin)['test_id'])")
+          echo "📋 Test ID: $TEST_ID"
+          
+          # Poll for test completion
+          echo "⏳ Polling for test completion..."
+          MAX_WAIT=600  # 10 minutes max
+          ELAPSED=0
+          POLL_INTERVAL=15
+          
+          while [ $ELAPSED -lt $MAX_WAIT ]; do
+            sleep $POLL_INTERVAL
+            ELAPSED=$((ELAPSED + POLL_INTERVAL))
+            
+            STATUS_RESPONSE=$(curl -s "$POD_URL/test-status/$TEST_ID")
+            STATUS=$(echo "$STATUS_RESPONSE" | python3 -c "import sys, json; print(json.load(sys.stdin)['status'])")
+            
+            echo "📊 Test status after ${ELAPSED}s: $STATUS"
+            
+            if [ "$STATUS" = "success" ]; then
+              echo "✅ Tests passed!"
+              echo "📄 Test output:"
+              echo "$STATUS_RESPONSE" | python3 -c "import sys, json; print(json.load(sys.stdin)['output'])"
+              exit 0
+            elif [ "$STATUS" = "failed" ]; then
+              echo "❌ Tests failed!"
+              echo "📄 Test output:"
+              echo "$STATUS_RESPONSE" | python3 -c "import sys, json; print(json.load(sys.stdin)['output'])"
+              exit 1
+            fi
+          done
+          
+          echo "⏰ Tests timed out after $MAX_WAIT seconds"
+          exit 1
