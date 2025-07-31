@@ -2,6 +2,7 @@ langchain
 faiss-cpu
 ic-py
 requests
+psycopg2-binary
 pyyaml
 flask
 flask-cors
