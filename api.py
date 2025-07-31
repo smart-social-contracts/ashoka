@@ -4,7 +4,7 @@ Ashoka API - Simple HTTP service for AI governance advice
 """
 import json
 import requests
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, Response
 from pathlib import Path
 import traceback
 
@@ -58,26 +58,57 @@ def ask():
     # Build complete prompt
     prompt = build_prompt(user_principal, realm_principal, question)
     
+    # Check if streaming is requested
+    stream = data.get('stream', False)
+    
     # Send to Ollama
+    try:
+        if stream:
+            return Response(stream_response(ollama_url, prompt, user_principal, realm_principal, question), 
+                          mimetype='text/plain')
+        else:
+            response = requests.post(f"{ollama_url}/api/generate", json={
+                "model": "llama3.2:1b",
+                "prompt": prompt,
+                "stream": False
+            })
+            answer = response.json()['response']
+            
+            # Save to conversation history
+            save_to_conversation(user_principal, realm_principal, question, answer)
+            
+            return jsonify({
+                "success": True,
+                "answer": answer
+            })
+    except Exception as e:
+        print(f"Error: {traceback.format_exc()}")
+        return jsonify({"error": str(e)}), 500
+
+def stream_response(ollama_url, prompt, user_principal, realm_principal, question):
+    """Generator function for streaming responses"""
     try:
         response = requests.post(f"{ollama_url}/api/generate", json={
             "model": "llama3.2:1b",
             "prompt": prompt,
-            "stream": False
-        })
-        print('response.json(): ', response.json())
-        answer = response.json()['response']
+            "stream": True
+        }, stream=True)
         
-        # Save to conversation history
-        save_to_conversation(user_principal, realm_principal, question, answer)
-        
-        return jsonify({
-            "success": True,
-            "answer": answer
-        })
+        full_answer = ""
+        for line in response.iter_lines():
+            if line:
+                data = json.loads(line.decode('utf-8'))
+                if 'response' in data:
+                    chunk = data['response']
+                    full_answer += chunk
+                    yield chunk
+                    
+                if data.get('done', False):
+                    # Save complete answer to conversation history
+                    save_to_conversation(user_principal, realm_principal, question, full_answer)
+                    break
     except Exception as e:
-        print(f"Error: {traceback.format_exc()}")
-        return jsonify({"error": str(e)}), 500
+        yield f"Error: {str(e)}"
 
 @app.route('/', methods=['GET'])
 def health():

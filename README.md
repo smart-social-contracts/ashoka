@@ -5,16 +5,13 @@ An AI-powered question-answering system for Internet Computer Protocol realms. A
 ## Quick Start
 
 ```bash
-# Start the system with Docker Compose
-docker-compose up
-
-# Ask a question via HTTP POST
 curl -X POST http://localhost:5000/api/ask \
   -H "Content-Type: application/json" \
   -d '{
-    "realm_principal": "aaa-realm",
-    "user_principal": "aaa-user",
-    "question": "What is the current governance status?"
+    "user_principal": "user123",
+    "realm_principal": "realm456", 
+    "question": "How can we improve voter participation?",
+    "stream": true
   }'
 ```
 
