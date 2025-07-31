@@ -30,9 +30,9 @@ def build_prompt(user_principal, realm_principal, question):
     prompt = f"{PERSONA}\n\n{history_text}User: {question}\nAshoka:"
     return prompt
 
-def save_to_conversation(user_principal, realm_principal, question, answer):
+def save_to_conversation(user_principal, realm_principal, question, answer, prompt=None):
     """Save Q&A to conversation history"""
-    db_client.store_conversation(user_principal, realm_principal, question, answer)
+    db_client.store_conversation(user_principal, realm_principal, question, answer, prompt)
 
 @app.route('/api/ask', methods=['POST'])
 def ask():
@@ -69,7 +69,7 @@ def ask():
             answer = response.json()['response']
             
             # Save to conversation history
-            save_to_conversation(user_principal, realm_principal, question, answer)
+            save_to_conversation(user_principal, realm_principal, question, answer, prompt)
             
             return jsonify({
                 "success": True,
@@ -99,7 +99,7 @@ def stream_response(ollama_url, prompt, user_principal, realm_principal, questio
                     
                 if data.get('done', False):
                     # Save complete answer to conversation history
-                    save_to_conversation(user_principal, realm_principal, question, full_answer)
+                    save_to_conversation(user_principal, realm_principal, question, full_answer, prompt)
                     break
     except Exception as e:
         yield f"Error: {str(e)}"
