@@ -5,7 +5,7 @@
 set -e
 set -x
 
-# docker build -t smartsocialcontracts/ashoka:branch .
+docker build -t smartsocialcontracts/ashoka:local .
 
 docker run \
     -it --rm \
@@ -17,6 +17,5 @@ docker run \
     -v $PWD/workspace/venv:/workspace/venv:rw \
     -v $PWD/workspace/chromadb_data:/workspace/chromadb_data:rw \
     -v $PWD/workspace/ollama:/workspace/ollama:rw \
-    -v $PWD:/app/ashoka:ro \
-    smartsocialcontracts/ashoka:branch
+    smartsocialcontracts/ashoka:local
 

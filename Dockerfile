@@ -53,15 +53,11 @@ COPY tests tests
 COPY run.sh run.sh
 COPY start.sh start.sh
 COPY pod_manager.py pod_manager.py
-COPY rag rag
-COPY cli cli
-COPY database database
-COPY scripts scripts
 COPY requirements.txt requirements.txt
 COPY requirements-dev.txt requirements-dev.txt
 COPY api.py api.py
 COPY dfx.json dfx.json
-COPY pod_manager.py pod_manager.py
+COPY prompts prompts
 
 # Note: Python dependencies will be installed by run.sh into the persistent volume
 # This prevents duplicate installations and allows for faster container restarts
