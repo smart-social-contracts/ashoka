@@ -117,8 +117,8 @@ for i in {1..$CHROMADB_STARTUP_TIMEOUT}; do
 done
 
 # Run API server
-echo "Starting API server..."
-python3 api.py 2>&1 | tee -a logs/api.log &
+# echo "Starting API server..."
+# python3 api.py 2>&1 | tee -a logs/api.log &
 
 
 # # Create AI governor

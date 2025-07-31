@@ -59,6 +59,9 @@ COPY database database
 COPY scripts scripts
 COPY requirements.txt requirements.txt
 COPY requirements-dev.txt requirements-dev.txt
+COPY api.py api.py
+COPY dfx.json dfx.json
+COPY pod_manager.py pod_manager.py
 
 # Note: Python dependencies will be installed by run.sh into the persistent volume
 # This prevents duplicate installations and allows for faster container restarts
