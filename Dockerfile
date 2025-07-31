@@ -8,19 +8,11 @@ RUN apt-get update && apt-get upgrade -y
 RUN apt-get install -y --fix-missing \
     curl git python3 python3-pip python3-venv unzip sudo nano wget netcat net-tools openssh-server \
     postgresql postgresql-contrib \
-    apache2 \
     ca-certificates \
     gnupg \
     lsb-release
 
-# Add pgAdmin repository and install pgAdmin
-RUN curl -fsS https://www.pgadmin.org/static/packages_pgadmin_org.pub | gpg --dearmor -o /usr/share/keyrings/packages-pgadmin-org.gpg
-RUN echo "deb [signed-by=/usr/share/keyrings/packages-pgadmin-org.gpg] https://ftp.postgresql.org/pub/pgadmin/pgadmin4/apt/$(lsb_release -cs) pgadmin4 main" > /etc/apt/sources.list.d/pgadmin4.list
-RUN apt-get update
-RUN apt-get install -y pgadmin4-web libapache2-mod-wsgi-py3
 
-# Configure Apache for pgAdmin4
-RUN a2enmod wsgi headers rewrite
 
 RUN apt-get clean
 
@@ -74,6 +66,5 @@ EXPOSE 11434
 EXPOSE 5000
 EXPOSE 8000
 EXPOSE 2222
-EXPOSE 80
 
 CMD ["./start.sh"]

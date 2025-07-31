@@ -99,9 +99,7 @@ if [ -f "database/schema.sql" ]; then
     sudo -u postgres psql -d ashoka_db -f database/schema.sql 2>/dev/null || echo "Schema already initialized"
 fi
 
-# Setup and start pgAdmin4
-echo "Setting up pgAdmin4..."
-./start_pgadmin.sh
+
 
 # Start ChromaDB server in background
 echo "Starting ChromaDB server..."

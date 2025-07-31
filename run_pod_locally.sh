@@ -14,7 +14,6 @@ docker run \
     -p 5050:5050 \
     -p 5432:5432 \
     -p 2222:2222 \
-    -p 80:80 \
     -v $PWD/workspace/venv:/workspace/venv:rw \
     -v $PWD/workspace/chromadb_data:/workspace/chromadb_data:rw \
     -v $PWD/workspace/ollama:/workspace/ollama:rw \
