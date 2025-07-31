@@ -12,7 +12,8 @@ docker-compose up
 curl -X POST http://localhost:5000/api/ask \
   -H "Content-Type: application/json" \
   -d '{
-    "realm_canister_id": "your-realm-id",
+    "realm_principal": "aaa-realm",
+    "user_principal": "aaa-user",
     "question": "What is the current governance status?"
   }'
 ```
@@ -216,3 +217,4 @@ ashoka/
 └── tests/                 # Unit tests and test scenarios
     └── scenarios/         # Governance test scenarios
 ```
+

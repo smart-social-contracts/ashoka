@@ -3,9 +3,17 @@ FROM nvidia/cuda:12.1.0-base-ubuntu22.04
 # --- System setup ---
 ENV DEBIAN_FRONTEND=noninteractive
 
+# Update package lists and fix broken packages
+RUN apt-get update && apt-get upgrade -y
+RUN apt-get install -y --fix-broken
 RUN apt-get update
-RUN apt-get install -y \
-    curl git python3 python3-pip python3-venv unzip sudo nano wget netcat net-tools openssh-server
+RUN apt-get install -y --no-install-recommends \
+    curl git python3 python3-pip python3-venv unzip sudo nano wget netcat net-tools openssh-server \
+    ca-certificates \
+    gnupg \
+    lsb-release
+RUN apt-get install -y --no-install-recommends postgresql postgresql-contrib
+
 RUN apt-get clean
 
 # --- SSH server ---
@@ -30,6 +38,19 @@ ENV OLLAMA_HOME=/workspace/ollama
 WORKDIR /app
 # --- Clone Ashoka repository ---
 RUN git clone https://github.com/smart-social-contracts/ashoka.git
+WORKDIR /app/ashoka
+RUN git fetch origin && git checkout devin/1753388604-ashoka-rag-integration
+
+# --- PostgreSQL setup ---
+USER postgres
+RUN /etc/init.d/postgresql start && \
+    psql --command "CREATE USER ashoka_user WITH SUPERUSER PASSWORD 'ashoka_pass';" && \
+    createdb -O ashoka_user ashoka_db
+USER root
+
+# --- Configure PostgreSQL for external connections ---
+RUN sed -i "s/#listen_addresses = 'localhost'/listen_addresses = '*'/" /etc/postgresql/14/main/postgresql.conf
+RUN echo 'host    all             all             0.0.0.0/0               scram-sha-256' >> /etc/postgresql/14/main/pg_hba.conf
 
 # --- Python environment ---
 WORKDIR /app/ashoka
@@ -41,8 +62,20 @@ RUN mkdir -p /workspace/chromadb_data
 # Note: Python dependencies will be installed by run.sh into the persistent volume
 # This prevents duplicate installations and allows for faster container restarts
 
+# Ollama
 EXPOSE 11434
-EXPOSE 5000 8000
+
+# PostgreSQL
+EXPOSE 5432
+
+# ChromaDB
+EXPOSE 8000
+
+# SSH
 EXPOSE 2222
+
+# Flask (API)
+EXPOSE 5000
+
 
 CMD ["./start.sh"]

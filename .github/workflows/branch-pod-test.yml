@@ -9,20 +9,18 @@ on:
     branches:
       - develop
       - staging
-      - feature/*
-      - fix/*
-      - hotfix/*
-  pull_request:
-    branches:
-      - main
+      - 'feature/**'
+      - 'fix/**'
+      - 'hotfix/**'
+      - 'devin/**'
 
 jobs:
   test-branch-pod:
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' || github.event_name == 'pull_request' }}
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
     env:
       RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
-      BOOTUP_TIMEOUT_SEC: 300
+      BOOTUP_TIMEOUT_SEC: 600
     
     steps:
       - name: Checkout repository
@@ -48,7 +46,3 @@ jobs:
           echo "🔍 Testing pod at: $POD_URL"
           
           ./scripts/health_check.sh $BOOTUP_TIMEOUT_SEC "$POD_URL"
-
-      - name: Stop branch pod
-        if: always()
-        run: ./pod_manager.py branch stop --verbose

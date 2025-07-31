@@ -10,6 +10,12 @@ echo $SSH_AUTH_KEY >> ~/.ssh/authorized_keys
 # Create logs directory if it doesn't exist
 mkdir -p logs
 
+if [ -d ".git" ]; then
+    echo "Checking out correct branch..."
+    git fetch origin 2>/dev/null || echo "Could not fetch from origin"
+    git checkout devin/1753388604-ashoka-rag-integration 2>/dev/null || echo "Branch already checked out or not available"
+fi
+
 # Create workspace directories if they don't exist
 mkdir -p /workspace/ollama
 mkdir -p /workspace/venv
@@ -77,6 +83,23 @@ fi
 
 mkdir -p /app/chromadb_data
 chmod 777 /app/chromadb_data
+
+echo "Starting PostgreSQL..."
+service postgresql start
+
+sleep 5
+
+echo "Setting up PostgreSQL database..."
+sudo -u postgres createdb ashoka_db 2>/dev/null || echo "Database already exists"
+sudo -u postgres psql -d ashoka_db -c "CREATE USER ashoka_user WITH PASSWORD 'ashoka_pass';" 2>/dev/null || echo "User already exists"
+sudo -u postgres psql -d ashoka_db -c "GRANT ALL PRIVILEGES ON DATABASE ashoka_db TO ashoka_user;" 2>/dev/null || echo "Privileges already granted"
+
+if [ -f "database/schema.sql" ]; then
+    echo "Initializing database schema..."
+    sudo -u postgres psql -d ashoka_db -f database/schema.sql 2>/dev/null || echo "Schema already initialized"
+fi
+
+
 
 # Start ChromaDB server in background
 echo "Starting ChromaDB server..."

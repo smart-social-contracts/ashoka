@@ -1,0 +1,22 @@
+{
+  "realm_principal": "realm_001",
+  "name": "Democratic Governance Realm",
+  "treasury": {
+    "total_funds": 500000,
+    "currency": "USDC"
+  },
+  "governance": {
+    "voting_system": "token_weighted",
+    "proposal_threshold": 1000
+  },
+  "active_proposals": [
+    {
+      "title": "Treasury Allocation for Q1 2025",
+      "status": "active"
+    }
+  ],
+  "community_stats": {
+    "total_members": 1250,
+    "active_voters": 340
+  }
+}
