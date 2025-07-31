@@ -1,0 +1,26 @@
+[
+  {
+    "test_id": 1,
+    "question": "How should a DAO allocate treasury funds for community development?",
+    "expected_answer": "Treasury allocation should follow a balanced approach: 40% for developer grants to build ecosystem tools and applications, 30% for marketing and community outreach to attract new members, 20% for infrastructure improvements including security audits and platform upgrades, and 10% reserved as emergency funds. All allocations should be subject to community voting with clear milestones and accountability measures.",
+    "actual_answer": "Request Error: HTTPConnectionPool(host='localhost', port=5000): Read timed out. (read timeout=30)",
+    "similarity_score": -0.028290849179029465,
+    "passed": false
+  },
+  {
+    "test_id": 2,
+    "question": "What governance structure works best for a multi-stakeholder blockchain project?",
+    "expected_answer": "A hybrid governance structure works best with specialized councils for different stakeholder groups: Technical Council for developers handling protocol upgrades, Token Holder Assembly for economic decisions, Validator Committee for network security matters, and User Advisory Board for UX/product decisions. Major decisions require approval from multiple councils with weighted voting based on stake and expertise relevance.",
+    "actual_answer": "Request Error: HTTPConnectionPool(host='localhost', port=5000): Read timed out. (read timeout=30)",
+    "similarity_score": -0.0604308620095253,
+    "passed": false
+  },
+  {
+    "test_id": 3,
+    "question": "How can a DAO prevent governance attacks and vote manipulation?",
+    "expected_answer": "Implement multi-layered protection: time-locked voting with minimum holding periods, quadratic voting to reduce whale influence, delegation systems for expertise-based voting, multi-signature requirements for large treasury movements, and progressive voting power that caps maximum influence per address. Additionally, establish emergency pause mechanisms and require supermajority for critical changes.",
+    "actual_answer": "Request Error: HTTPConnectionPool(host='localhost', port=5000): Read timed out. (read timeout=30)",
+    "similarity_score": -0.034523021429777145,
+    "passed": false
+  }
+]

@@ -41,3 +41,5 @@ jobs:
           echo "🔍 Testing pod at: $POD_URL"
           
           ./scripts/health_check.sh $BOOTUP_TIMEOUT_SEC "$POD_URL"
+
+          python test_runner.py
