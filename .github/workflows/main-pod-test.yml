@@ -45,7 +45,18 @@ jobs:
           # Start remote CI test
           echo "🚀 Starting remote CI tests..."
           TEST_RESPONSE=$(curl -s -X POST "$POD_URL/start-test")
-          TEST_ID=$(echo "$TEST_RESPONSE" | python3 -c "import sys, json; print(json.load(sys.stdin)['test_id'])")
+          echo "🔍 Test response: $TEST_RESPONSE"
+          
+          # Parse test ID with error handling
+          TEST_ID=$(echo "$TEST_RESPONSE" | python3 -c "
+          import sys, json
+          try:
+              data = json.load(sys.stdin)
+              print(data['test_id'])
+          except Exception as e:
+              print(f'Error parsing JSON: {e}', file=sys.stderr)
+              sys.exit(1)
+          ")
           echo "📋 Test ID: $TEST_ID"
           
           # Poll for test completion
@@ -59,19 +70,46 @@ jobs:
             ELAPSED=$((ELAPSED + POLL_INTERVAL))
             
             STATUS_RESPONSE=$(curl -s "$POD_URL/test-status/$TEST_ID")
-            STATUS=$(echo "$STATUS_RESPONSE" | python3 -c "import sys, json; print(json.load(sys.stdin)['status'])")
+            echo "🔍 Status response: $STATUS_RESPONSE"
+            
+            # Parse status with error handling
+            STATUS=$(echo "$STATUS_RESPONSE" | python3 -c "
+            import sys, json
+            try:
+                data = json.load(sys.stdin)
+                print(data['status'])
+            except Exception as e:
+                print(f'Error parsing status JSON: {e}', file=sys.stderr)
+                print('failed')  # Default to failed on parse error
+            ")
             
             echo "📊 Test status after ${ELAPSED}s: $STATUS"
             
             if [ "$STATUS" = "success" ]; then
               echo "✅ Tests passed!"
               echo "📄 Test output:"
-              echo "$STATUS_RESPONSE" | python3 -c "import sys, json; print(json.load(sys.stdin)['output'])"
+              echo "$STATUS_RESPONSE" | python3 -c "
+            import sys, json
+            try:
+                data = json.load(sys.stdin)
+                print(data.get('output', 'No output available'))
+            except Exception as e:
+                print(f'Error parsing output JSON: {e}', file=sys.stderr)
+                print('Could not parse test output')
+            "
               exit 0
             elif [ "$STATUS" = "failed" ]; then
               echo "❌ Tests failed!"
               echo "📄 Test output:"
-              echo "$STATUS_RESPONSE" | python3 -c "import sys, json; print(json.load(sys.stdin)['output'])"
+              echo "$STATUS_RESPONSE" | python3 -c "
+            import sys, json
+            try:
+                data = json.load(sys.stdin)
+                print(data.get('output', 'No output available'))
+            except Exception as e:
+                print(f'Error parsing output JSON: {e}', file=sys.stderr)
+                print('Could not parse test output')
+            "
               exit 1
             fi
           done
