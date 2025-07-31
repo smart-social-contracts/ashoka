@@ -7,6 +7,9 @@ import requests
 from flask import Flask, request, jsonify, Response
 from pathlib import Path
 import traceback
+import threading
+import subprocess
+import uuid
 from database.db_client import DatabaseClient
 
 app = Flask(__name__)
@@ -16,6 +19,9 @@ PERSONA = (Path(__file__).parent / "prompts" / "governor_init.txt").read_text()
 
 # Initialize database client
 db_client = DatabaseClient()
+
+# In-memory test status storage
+test_jobs = {}
 
 def build_prompt(user_principal, realm_principal, question):
     """Build complete prompt with persona + history + question"""
@@ -103,6 +109,77 @@ def stream_response(ollama_url, prompt, user_principal, realm_principal, questio
                     break
     except Exception as e:
         yield f"Error: {str(e)}"
+
+def run_test_background(test_id):
+    """Run test in background thread"""
+    try:
+        test_jobs[test_id]['status'] = 'running'
+        test_jobs[test_id]['output'] = 'Starting test execution...\n'
+        
+        # Run the test_runner.py script with real-time output
+        process = subprocess.Popen(
+            ['python', 'test_runner.py'],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            bufsize=1,
+            universal_newlines=True
+        )
+        
+        output_lines = []
+        for line in process.stdout:
+            output_lines.append(line)
+            test_jobs[test_id]['output'] = ''.join(output_lines)
+        
+        process.wait(timeout=300)  # 5 minute timeout
+        
+        if process.returncode == 0:
+            test_jobs[test_id]['status'] = 'success'
+        else:
+            test_jobs[test_id]['status'] = 'failed'
+            
+    except subprocess.TimeoutExpired:
+        test_jobs[test_id]['status'] = 'failed'
+        test_jobs[test_id]['output'] += '\nTest timed out after 5 minutes'
+        if 'process' in locals():
+            process.kill()
+    except Exception as e:
+        test_jobs[test_id]['status'] = 'failed'
+        test_jobs[test_id]['output'] += f'\nError: {str(e)}'
+
+@app.route('/start-test', methods=['POST'])
+def start_test():
+    """Start CI test in background"""
+    test_id = str(uuid.uuid4())
+    
+    # Initialize test job
+    test_jobs[test_id] = {
+        'status': 'pending',
+        'output': ''
+    }
+    
+    # Start background thread
+    thread = threading.Thread(target=run_test_background, args=(test_id,))
+    thread.daemon = True
+    thread.start()
+    
+    return jsonify({
+        'test_id': test_id,
+        'status': 'pending'
+    })
+
+@app.route('/test-status/<test_id>', methods=['GET'])
+def test_status(test_id):
+    """Get test status"""
+    if test_id not in test_jobs:
+        return jsonify({'error': 'Test ID not found'}), 404
+    
+    job = test_jobs[test_id]
+    return jsonify({
+        'test_id': test_id,
+        'status': job['status'],
+        'output': job['output']
+    })
 
 @app.route('/', methods=['GET'])
 def health():
