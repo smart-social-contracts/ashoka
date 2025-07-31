@@ -16,6 +16,12 @@ RUN apt-get install -y --no-install-recommends postgresql postgresql-contrib
 
 RUN apt-get clean
 
+# --- Create persistent volumes ---
+RUN mkdir -p /workspace/ollama
+RUN mkdir -p /workspace/venv
+RUN mkdir -p /workspace/chromadb_data
+
+
 # --- SSH server ---
 RUN mkdir -p ~/.ssh
 RUN touch ~/.ssh/authorized_keys
@@ -27,19 +33,8 @@ RUN DFX_VERSION=0.27.0 DFXVM_INIT_YES=true sh -ci "$(curl -fsSL https://internet
 
 # --- Ollama installation ---
 RUN curl -fsSL https://ollama.com/install.sh | sh
-
-# --- Add ollama to path ---
 ENV PATH="/root/.ollama/bin:${PATH}"
-
-# --- Set persistent home for Ollama ---
-RUN mkdir -p /workspace/ollama
 ENV OLLAMA_HOME=/workspace/ollama
-
-WORKDIR /app
-# --- Clone Ashoka repository ---
-RUN git clone https://github.com/smart-social-contracts/ashoka.git
-WORKDIR /app/ashoka
-RUN git fetch origin && git checkout devin/1753388604-ashoka-rag-integration
 
 # --- PostgreSQL setup ---
 USER postgres
@@ -52,12 +47,18 @@ USER root
 RUN sed -i "s/#listen_addresses = 'localhost'/listen_addresses = '*'/" /etc/postgresql/14/main/postgresql.conf
 RUN echo 'host    all             all             0.0.0.0/0               scram-sha-256' >> /etc/postgresql/14/main/pg_hba.conf
 
-# --- Python environment ---
+# --- App environment ---
 WORKDIR /app/ashoka
-
-# Create initial directories that will be mirrored in the persistent volume
-RUN mkdir -p /workspace/venv
-RUN mkdir -p /workspace/chromadb_data
+COPY tests tests
+COPY run.sh run.sh
+COPY start.sh start.sh
+COPY pod_manager.py pod_manager.py
+COPY rag rag
+COPY cli cli
+COPY database database
+COPY scripts scripts
+COPY requirements.txt requirements.txt
+COPY requirements-dev.txt requirements-dev.txt
 
 # Note: Python dependencies will be installed by run.sh into the persistent volume
 # This prevents duplicate installations and allows for faster container restarts

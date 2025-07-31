@@ -10,12 +10,6 @@ echo $SSH_AUTH_KEY >> ~/.ssh/authorized_keys
 # Create logs directory if it doesn't exist
 mkdir -p logs
 
-if [ -d ".git" ]; then
-    echo "Checking out correct branch..."
-    git fetch origin 2>/dev/null || echo "Could not fetch from origin"
-    git checkout devin/1753388604-ashoka-rag-integration 2>/dev/null || echo "Branch already checked out or not available"
-fi
-
 # Create workspace directories if they don't exist
 mkdir -p /workspace/ollama
 mkdir -p /workspace/venv
@@ -35,7 +29,6 @@ export DFX_WARNING=-mainnet_plaintext_identity
 # Set default realm ID
 export ASHOKA_USE_LLM=true
 export ASHOKA_DFX_NETWORK="ic"
-echo "ASHOKA_REALM_ID=$ASHOKA_REALM_ID"
 echo "ASHOKA_DEFAULT_MODEL=$ASHOKA_DEFAULT_MODEL"
 echo "ASHOKA_USE_LLM=$ASHOKA_USE_LLM"
 echo "ASHOKA_DFX_NETWORK=$ASHOKA_DFX_NETWORK"
@@ -45,7 +38,7 @@ export OLLAMA_HOST=0.0.0.0
 export OLLAMA_HOME=/workspace/ollama
 export OLLAMA_MODELS=/workspace/ollama/models
 # Set default models to pull if not defined
-: ${OLLAMA_MODEL_LIST:=$ASHOKA_DEFAULT_MODEL}
+: ${OLLAMA_MODEL_LIST:=${ASHOKA_DEFAULT_MODEL:-"llama3.2:1b"}}
 echo "OLLAMA_HOST=$OLLAMA_HOST"
 echo "OLLAMA_HOME=$OLLAMA_HOME"
 echo "OLLAMA_MODELS=$OLLAMA_MODELS"
@@ -64,22 +57,25 @@ done
 echo "Ollama is up and running at http://localhost:11434"
 
 # Pull the models
-echo "Pulling models..."
+echo "Pulling models: $OLLAMA_MODEL_LIST"
 for model in $OLLAMA_MODEL_LIST; do
   echo "Pulling model: $model"
   ollama pull $model
 done
 
-# Check if requirements have been installed already
-if [ ! -f "/workspace/venv/.requirements_installed" ]; then
-    echo "Installing Python requirements..."
-    pip3 install --upgrade pip
-    pip3 install -r requirements.txt
-    # Create a flag file to indicate requirements are installed
-    touch /workspace/venv/.requirements_installed
-else
-    echo "Python requirements already installed, skipping installation."
-fi
+pip3 install --upgrade pip
+pip3 install -r requirements.txt
+
+# # Check if requirements have been installed already
+# if [ ! -f "/workspace/venv/.requirements_installed" ]; then
+#     echo "Installing Python requirements..."
+#     pip3 install --upgrade pip
+#     pip3 install -r requirements.txt
+#     # Create a flag file to indicate requirements are installed
+#     touch /workspace/venv/.requirements_installed
+# else
+#     echo "Python requirements already installed, skipping installation."
+# fi
 
 mkdir -p /app/chromadb_data
 chmod 777 /app/chromadb_data
@@ -121,12 +117,16 @@ for i in {1..$CHROMADB_STARTUP_TIMEOUT}; do
 done
 
 # Run API server
+echo "Starting API server..."
 python3 api.py 2>&1 | tee -a logs/api.log &
 
-# Create AI governor
-python3 cli/main.py create 2>&1 | tee -a logs/cli_main_create.log
-# #--ollama-url http://localhost:11434 --realm-id $ASHOKA_REALM_ID
 
-# Keep container running
-echo "Container is ready. Use 'docker exec' to run commands or attach to this container."
-tail -f /dev/null
+# # Create AI governor
+# python3 cli/main.py create 2>&1 | tee -a logs/cli_main_create.log
+# # #--ollama-url http://localhost:11434 --realm-id $ASHOKA_REALM_ID
+
+# # Keep container running
+# echo "Container is ready. Use 'docker exec' to run commands or attach to this container."
+# tail -f /dev/null
+
+sleep 999999999
