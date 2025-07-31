@@ -5,14 +5,14 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 # Update package lists and fix broken packages
 RUN apt-get update && apt-get upgrade -y
-RUN apt-get install -y --fix-missing \
+RUN apt-get install -y --fix-broken
+RUN apt-get update
+RUN apt-get install -y --no-install-recommends \
     curl git python3 python3-pip python3-venv unzip sudo nano wget netcat net-tools openssh-server \
-    postgresql postgresql-contrib \
     ca-certificates \
     gnupg \
     lsb-release
-
-
+RUN apt-get install -y --no-install-recommends postgresql postgresql-contrib
 
 RUN apt-get clean
 
@@ -62,9 +62,20 @@ RUN mkdir -p /workspace/chromadb_data
 # Note: Python dependencies will be installed by run.sh into the persistent volume
 # This prevents duplicate installations and allows for faster container restarts
 
+# Ollama
 EXPOSE 11434
-EXPOSE 5000
+
+# PostgreSQL
+EXPOSE 5432
+
+# ChromaDB
 EXPOSE 8000
+
+# SSH
 EXPOSE 2222
+
+# Flask (API)
+EXPOSE 5000
+
 
 CMD ["./start.sh"]
