@@ -183,6 +183,29 @@ def test_status(test_id):
         'output': job['output']
     })
 
+@app.route('/test-results/<test_id>', methods=['GET'])
+def test_results(test_id):
+    """Get detailed test results"""
+    if test_id not in test_jobs:
+        return jsonify({'error': 'Test ID not found'}), 404
+    
+    # Check if test is completed
+    job = test_jobs[test_id]
+    if job['status'] not in ['success', 'failed']:
+        return jsonify({'error': 'Test not completed yet'}), 400
+    
+    # Try to read test_results.json file
+    try:
+        results_file = Path(__file__).parent / 'test_results.json'
+        if results_file.exists():
+            with open(results_file, 'r') as f:
+                results_data = json.load(f)
+            return jsonify(results_data)
+        else:
+            return jsonify({'error': 'Test results file not found'}), 404
+    except Exception as e:
+        return jsonify({'error': f'Failed to read test results: {str(e)}'}), 500
+
 @app.route('/', methods=['GET'])
 def health():
     return jsonify({"status": "ok"})

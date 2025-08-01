@@ -110,6 +110,36 @@ class RemoteCITestRunner:
         print(f"⏰ Tests timed out after {self.max_wait} seconds")
         sys.exit(1)
     
+    def fetch_detailed_results(self, test_id: str) -> None:
+        """Fetch and display detailed test results"""
+        try:
+            print("\n📊 Fetching detailed test results...")
+            response = requests.get(f"{self.pod_url}/test-results/{test_id}", timeout=30)
+            response.raise_for_status()
+            
+            results_data = response.json()
+            print('results_data', results_data)
+            
+            print("\n" + "="*60)
+            print("DETAILED TEST RESULTS")
+            print("="*60)
+            
+            if isinstance(results_data, list):
+                for i, test in enumerate(results_data, 1):
+                    print(f"\nTest {i}/{len(results_data)}: {test.get('question', 'Unknown question')[:60]}...")
+                    print(f"Expected Answer: {test.get('expected_answer', 'N/A')[:100]}...")
+                    print(f"Actual Answer: {test.get('actual_answer', 'N/A')[:100]}...")
+                    print(f"Similarity Score: {test.get('similarity_score', 'N/A'):.3f}")
+                    print(f"Status: {'✅ PASS' if test.get('passed', False) else '❌ FAIL'}")
+                    print("-" * 40)
+            else:
+                print(f"Results: {results_data}")
+                
+        except requests.RequestException as e:
+            print(f"⚠️ Could not fetch detailed results: {e}")
+        except Exception as e:
+            print(f"⚠️ Error processing detailed results: {e}")
+    
     def run(self) -> None:
         """Run the complete CI test workflow"""
         try:
@@ -118,6 +148,9 @@ class RemoteCITestRunner:
             
             # Step 2: Poll for test completion
             self.poll_test_completion(test_id)
+
+            # Step 3: Fetch and display detailed test results
+            self.fetch_detailed_results(test_id)
             
         except KeyboardInterrupt:
             print("\n⚠️ Test runner interrupted by user")
