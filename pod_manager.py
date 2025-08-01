@@ -64,7 +64,7 @@ class PodManager:
         raise ValueError("RUNPOD_API_KEY not found in environment")
     
     def _find_pod_by_type(self, pod_type: str) -> tuple[str, str]:
-        """Find existing pod by type, returns (pod_id, server_host) or (None, None) if not found"""
+        """Find existing pod by type, returns (pod_id, pod_url) or (None, None) if not found"""
         try:
             # Get all pods
             pods = runpod.get_pods()
@@ -79,10 +79,10 @@ class PodManager:
                 if pod_name.startswith(pod_name_prefix):
                     pod_id = pod.get('id')
                     if pod_id:
-                        server_host = f"{pod_id}-5000.proxy.runpod.net"
+                        pod_url = f"{pod_id}-5000.proxy.runpod.net"
                         if self.verbose:
                             self._print(f"✅ Found {pod_type} pod: {pod_name} (ID: {pod_id})")
-                        return pod_id, server_host
+                        return pod_id, pod_url
             
             if self.verbose:
                 self._print(f"❌ No {pod_type} pod found with prefix '{pod_name_prefix}'")
@@ -92,21 +92,14 @@ class PodManager:
             self._print(f"❌ Error finding pod: {e}", force=True)
             return None, None
     
-    def _get_server_host(self, pod_type: str) -> str:
+    def _get_pod_url(self, pod_type: str) -> str:
         """Get server host based on pod type - now uses dynamic pod discovery"""
-        pod_id, server_host = self._find_pod_by_type(pod_type)
-        if server_host:
-            return server_host
-        else:
-            # Fallback to environment variables if no pod found
-            if pod_type == "main":
-                return self.config.get('SERVER_HOST_MAIN', 'default-main-host')
-            else:
-                return self.config.get('SERVER_HOST_BRANCH', 'default-branch-host')
+        pod_id, pod_url = self._find_pod_by_type(pod_type)
+        return pod_url
     
-    def _extract_pod_id(self, server_host: str) -> str:
+    def _extract_pod_id(self, pod_url: str) -> str:
         """Extract pod ID from server host"""
-        return server_host.split('-')[0]
+        return pod_url.split('-')[0]
     
     def _print(self, message: str, force: bool = False):
         """Print message if verbose mode is enabled or force is True"""
@@ -156,7 +149,7 @@ class PodManager:
         self._print(f"Starting {pod_type} pod...")
         
         # Find existing pod by name pattern
-        pod_id, server_host = self._find_pod_by_type(pod_type)
+        pod_id, pod_url = self._find_pod_by_type(pod_type)
         
         if not pod_id:
             self._print(f"❌ No {pod_type} pod found")
@@ -167,7 +160,7 @@ class PodManager:
                 return False
         
         self._print(f"Pod ID: {pod_id}")
-        self._print(f"Server Host: {server_host}")
+        self._print(f"Server Host: {pod_url}")
         
         # Check current status
         current_status = self.get_pod_status(pod_id)
@@ -221,14 +214,14 @@ class PodManager:
         self._print(f"Stopping {pod_type} pod...")
         
         # Find existing pod by name pattern
-        pod_id, server_host = self._find_pod_by_type(pod_type)
+        pod_id, pod_url = self._find_pod_by_type(pod_type)
         
         if not pod_id:
             self._print(f"❌ No {pod_type} pod found. No action needed.")
             return True
         
         self._print(f"Pod ID: {pod_id}")
-        self._print(f"Server Host: {server_host}")
+        self._print(f"Server Host: {pod_url}")
         
         # Check current status
         current_status = self.get_pod_status(pod_id)
@@ -282,21 +275,18 @@ class PodManager:
     def status_pod(self, pod_type: str) -> bool:
         """Get pod status"""
         # Find existing pod by name pattern
-        pod_id, server_host = self._find_pod_by_type(pod_type)
+        pod_id, pod_url = self._find_pod_by_type(pod_type)
         
         if not pod_id:
             self._print(f"❌ No {pod_type} pod found")
             return False
         
-        self._print(f"Pod Type: {pod_type}")
-        self._print(f"Pod ID: {pod_id}")
-        self._print(f"Server Host: {server_host}")
+        print(f"POD_TYPE={pod_type}")
+        print(f"POD_ID={pod_id}")
+        print(f"POD_URL={pod_url}")
         
         status = self.get_pod_status(pod_id)
-        if self.verbose:
-            print(f"Status: {status}")
-        else:
-            print(status)
+        print(f"POD_STATUS={status}")
         
         return True
     
@@ -471,14 +461,14 @@ class PodManager:
         
         try:
             # Find existing pod by name pattern
-            pod_id, server_host = self._find_pod_by_type(pod_type)
+            pod_id, pod_url = self._find_pod_by_type(pod_type)
             
             if not pod_id:
                 self._print(f"❌ No {pod_type} pod found")
                 return False
             
             self._print(f"Pod ID: {pod_id}")
-            self._print(f"Server Host: {server_host}")
+            self._print(f"Server Host: {pod_url}")
             
             # Delete the pod using RunPod SDK
             result = runpod.terminate_pod(pod_id)

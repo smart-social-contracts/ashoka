@@ -34,15 +34,9 @@ jobs:
       - name: Install dependencies
         run: pip install requests runpod
 
-      - name: Get pod URL and test Flask server
+      - name: Run remote CI tests
         run: |
           ./pod_manager.py branch restart --deploy-new-if-needed --verbose
-
-          POD_URL=$(./pod_manager.py branch status --verbose 2>&1 | grep "Server Host:" | awk '{print "https://" $3}' || echo "")
-          if [ -z "$POD_URL" ]; then
-            echo "❌ Could not determine pod URL"
-            exit 1
-          fi
-          echo "🔍 Testing pod at: $POD_URL"
-          
+          source <(./pod_manager.py branch status)
           ./scripts/health_check.sh $BOOTUP_TIMEOUT_SEC "$POD_URL"
+          ./scripts/run_remote_ci_tests.py $POD_URL
