@@ -417,7 +417,8 @@ class PodManager:
                         container_disk_in_gb=container_disk,  # Container disk
                         support_public_ip=True,
                         start_ssh=True,
-                        env={'INACTIVITY_TIMEOUT_SECONDS': self.config.get('INACTIVITY_TIMEOUT_SECONDS')} if pod_type == "branch" else None
+                        # env={'INACTIVITY_TIMEOUT_SECONDS': self.cnfig.get('INACTIVITY_TIMEOUT_SECONDS')} if pod_type == "branch" else None
+                        env={'INACTIVITY_TIMEOUT_SECONDS': 3600}
                     )
                     
                     if self.verbose:
