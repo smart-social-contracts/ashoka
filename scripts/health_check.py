@@ -24,21 +24,21 @@ def health_check(pod_url: str, timeout_sec: int, sleep_interval: int = 10) -> bo
     Returns:
         True if health check succeeds, False otherwise
     """
-    print(f"🔍 Health checking {pod_url} for up to {timeout_sec} seconds...")
+    print(f"🔍 Health checking {pod_url} for up to {timeout_sec} seconds...", flush=True)
     
     start_time = time.time()
     end_time = start_time + timeout_sec
     
     while time.time() < end_time:
         elapsed = int(time.time() - start_time)
-        print(f"⏱️  Attempt at {elapsed}s ...")
+        print(f"⏱️  Attempt at {elapsed}s ...", flush=True)
         
         try:
             url = f"{pod_url.rstrip('/')}/"
             response = requests.get(url, timeout=15)
             response.raise_for_status()
             
-            print(f"✅ Health check successful at {url} after {elapsed}s")
+            print(f"✅ Health check successful at {url} after {elapsed}s", flush=True)
             return True
             
         except requests.RequestException:
@@ -56,7 +56,7 @@ def health_check(pod_url: str, timeout_sec: int, sleep_interval: int = 10) -> bo
             # No time left, exit loop
             break
     
-    print(f"❌ Health check failed: {pod_url} did not respond successfully within {timeout_sec} seconds")
+    print(f"❌ Health check failed: {pod_url} did not respond successfully within {timeout_sec} seconds", flush=True)
     return False
 
 

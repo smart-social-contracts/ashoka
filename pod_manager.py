@@ -276,6 +276,8 @@ class PodManager:
         """Get pod status"""
         # Find existing pod by name pattern
         pod_id, pod_url = self._find_pod_by_type(pod_type)
+
+        pod_url = 'https://' + pod_url if not pod_url.startswith('http') else pod_url
         
         if not pod_id:
             self._print(f"❌ No {pod_type} pod found")
