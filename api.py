@@ -5,6 +5,7 @@ Ashoka API - Simple HTTP service for AI governance advice
 import json
 import requests
 from flask import Flask, request, jsonify, Response
+from flask_cors import CORS
 from pathlib import Path
 import traceback
 import threading
@@ -14,6 +15,7 @@ import os
 from database.db_client import DatabaseClient
 
 app = Flask(__name__)
+CORS(app)  # Enable CORS for all routes
 
 # Load Ashoka persona once at startup
 PERSONA = (Path(__file__).parent / "prompts" / "governor_init.txt").read_text()

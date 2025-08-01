@@ -5,7 +5,7 @@ An AI-powered question-answering system for Internet Computer Protocol realms. A
 ## Quick Start
 
 ```bash
-curl -X POST http://localhost:5000/api/ask \
+curl -X POST https://1xze4llp4iff5h-5000.proxy.runpod.net/api/ask \
   -H "Content-Type: application/json" \
   -d '{
     "user_principal": "user123",
