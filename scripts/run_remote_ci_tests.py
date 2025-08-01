@@ -130,7 +130,7 @@ class RemoteCITestRunner:
                 for i, test in enumerate(results_data, 1):
                     print(f"\n🔍 Test {i}/{len(results_data)}")
                     print(f"📝 QUESTION: {test.get('question', 'Unknown question')}")
-                    print(f"✅ EXPECTED ANSWER: {test.get('expected_answer', 'N/A')}")
+                    print(f"🎯 EXPECTED ANSWER: {test.get('expected_answer', 'N/A')}")
                     print(f"🤖 ACTUAL ANSWER: {test.get('actual_answer', 'N/A')}")
                     print(f"📊 Similarity Score: {test.get('similarity_score', 'N/A'):.3f}")
                     print(f"🎯 Status: {'✅ PASS' if test.get('passed', False) else '❌ FAIL'}")
