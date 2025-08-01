@@ -128,12 +128,13 @@ class RemoteCITestRunner:
             
             if isinstance(results_data, list):
                 for i, test in enumerate(results_data, 1):
-                    print(f"\nTest {i}/{len(results_data)}: {test.get('question', 'Unknown question')[:60]}...")
-                    print(f"Expected Answer: {test.get('expected_answer', 'N/A')[:100]}...")
-                    print(f"Actual Answer: {test.get('actual_answer', 'N/A')[:100]}...")
-                    print(f"Similarity Score: {test.get('similarity_score', 'N/A'):.3f}")
-                    print(f"Status: {'✅ PASS' if test.get('passed', False) else '❌ FAIL'}")
-                    print("-" * 40)
+                    print(f"\n🔍 Test {i}/{len(results_data)}")
+                    print(f"📝 QUESTION: {test.get('question', 'Unknown question')}")
+                    print(f"✅ EXPECTED ANSWER: {test.get('expected_answer', 'N/A')}")
+                    print(f"🤖 ACTUAL ANSWER: {test.get('actual_answer', 'N/A')}")
+                    print(f"📊 Similarity Score: {test.get('similarity_score', 'N/A'):.3f}")
+                    print(f"🎯 Status: {'✅ PASS' if test.get('passed', False) else '❌ FAIL'}")
+                    print("-" * 80)
             else:
                 print(f"Results: {results_data}")
                 
