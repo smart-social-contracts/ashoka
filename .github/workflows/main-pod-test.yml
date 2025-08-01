@@ -33,5 +33,5 @@ jobs:
         run: |
           ./pod_manager.py main restart --deploy-new-if-needed --verbose
           source <(./pod_manager.py main status)
-          ./scripts/health_check.sh $BOOTUP_TIMEOUT_SEC "$POD_URL"
+          ./scripts/health_check.py $BOOTUP_TIMEOUT_SEC "$POD_URL"
           ./scripts/run_remote_ci_tests.py $POD_URL
