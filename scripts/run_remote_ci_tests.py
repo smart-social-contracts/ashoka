@@ -55,6 +55,7 @@ class RemoteCITestRunner:
         print("🚀 Starting remote CI tests...")
         
         try:
+            self.pod_url = "https://" + self.pod_url if not self.pod_url.startswith("https://") else self.pod_url
             response = requests.post(f"{self.pod_url}/start-test", timeout=30)
             response.raise_for_status()
             test_response = response.text
