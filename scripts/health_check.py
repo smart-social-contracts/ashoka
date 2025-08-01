@@ -31,7 +31,7 @@ def health_check(pod_url: str, timeout_sec: int, sleep_interval: int = 10) -> bo
     
     while time.time() < end_time:
         elapsed = int(time.time() - start_time)
-        print(f"⏱️  Attempt at {elapsed}s: checking {pod_url}")
+        print(f"⏱️  Attempt at {elapsed}s ...")
         
         try:
             url = f"{pod_url.rstrip('/')}/"
@@ -45,9 +45,16 @@ def health_check(pod_url: str, timeout_sec: int, sleep_interval: int = 10) -> bo
             # Continue to next attempt
             pass
         
-        # Wait before next attempt (unless we're at the end)
-        if time.time() < (end_time - sleep_interval):
+        # Always sleep before next attempt (unless we're at the end)
+        remaining_time = end_time - time.time()
+        if remaining_time > sleep_interval:
             time.sleep(sleep_interval)
+        elif remaining_time > 0:
+            # Sleep for remaining time if less than sleep_interval
+            time.sleep(remaining_time)
+        else:
+            # No time left, exit loop
+            break
     
     print(f"❌ Health check failed: {pod_url} did not respond successfully within {timeout_sec} seconds")
     return False
