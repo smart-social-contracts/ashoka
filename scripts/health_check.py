@@ -34,17 +34,18 @@ def health_check(pod_url: str, timeout_sec: int, sleep_interval: int = 10) -> bo
         print(f"⏱️  Attempt at {elapsed}s: checking {pod_url}")
         
         try:
-            url = f"{pod_url.rstrip('/')}"
+            url = f"{pod_url.rstrip('/')}/"
             response = requests.get(url, timeout=15)
             response.raise_for_status()
             
             print(f"✅ Health check successful at {url} after {elapsed}s")
             return True
             
-        except requests.RequestException as e:
-            print(f"⚠️ Error health checking {pod_url}: {e}")
-            continue
-    
+        except requests.RequestException:
+            # Continue to next attempt
+            pass
+        
+        # Wait before next attempt (unless we're at the end)
         if time.time() < (end_time - sleep_interval):
             time.sleep(sleep_interval)
     
