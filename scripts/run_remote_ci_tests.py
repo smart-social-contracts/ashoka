@@ -21,6 +21,7 @@ class RemoteCITestRunner:
         self.max_wait = int(os.getenv('MAX_WAIT', '600'))  # 10 minutes max
         self.poll_interval = int(os.getenv('POLL_INTERVAL', '15'))
         self.pod_url = pod_url
+        self.test_success = False
         
         print("🚀 Starting remote CI test runner...")
         print("📋 Configuration:")
@@ -93,14 +94,15 @@ class RemoteCITestRunner:
                     print("✅ Tests passed!")
                     print("📄 Test output:")
                     output = self.parse_json_field(status_response, "output", "No output available")
-                    print(output)
-                    sys.exit(0)
+                    print(output)   
+                    self.test_success = True
+                    return
                 elif status == "failed":
                     print("❌ Tests failed!")
                     print("📄 Test output:")
                     output = self.parse_json_field(status_response, "output", "No output available")
                     print(output)
-                    sys.exit(1)
+                    return
                     
             except requests.RequestException as e:
                 print(f"⚠️ Error polling test status: {e}")
@@ -108,7 +110,6 @@ class RemoteCITestRunner:
                 continue
         
         print(f"⏰ Tests timed out after {self.max_wait} seconds")
-        sys.exit(1)
     
     def fetch_detailed_results(self, test_id: str) -> None:
         """Fetch and display detailed test results"""
@@ -151,6 +152,11 @@ class RemoteCITestRunner:
 
             # Step 3: Fetch and display detailed test results
             self.fetch_detailed_results(test_id)
+
+            if self.test_success:
+                sys.exit(0)
+            else:
+                sys.exit(1)
             
         except KeyboardInterrupt:
             print("\n⚠️ Test runner interrupted by user")
