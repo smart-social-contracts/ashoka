@@ -19,3 +19,8 @@ curl -X POST https://1xze4llp4iff5h-5000.proxy.runpod.net/api/ask \
 
 TODO
 
+## Pod Deployment
+
+```bash
+./pod_manager.py main start --deploy-new-if-needed --verbose
+```

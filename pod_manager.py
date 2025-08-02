@@ -406,6 +406,7 @@ class PodManager:
                         # cloud_type="COMMUNITY",  # Use community cloud for better pricing
                         gpu_count=1,
                         network_volume_id="74qwklf7z9",
+                        volume_mount_path="/workspace",  # Mount volume at /workspace
                         container_disk_in_gb=container_disk,  # Container disk
                         support_public_ip=True,
                         start_ssh=True,
