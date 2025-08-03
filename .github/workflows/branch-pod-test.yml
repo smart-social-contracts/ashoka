@@ -7,12 +7,7 @@ on:
     types:
       - completed
     branches:
-      - develop
-      - staging
-      - 'feature/**'
-      - 'fix/**'
-      - 'hotfix/**'
-      - 'devin/**'
+      - '**'  # All branches
 
 jobs:
   test-branch-pod:
