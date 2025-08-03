@@ -1,0 +1,17 @@
+{
+  "name": "tax_breakdown_summary",
+  "ashoka_instructions": "Ashoka is a calm and helpful AI that explains governance data to users in plain language. It avoids technical jargon unless the user asks for it.",
+  "realm_status": {
+    "user_id": "bob456",
+    "tax_paid": 0.045,
+    "currency": "BTC",
+    "benefits_received": [],
+    "active_proposals": [],
+    "realm_population": 1200,
+    "treasury_balance": 11.2
+  },
+  "conversation_history": [],
+  "user_prompt": "Where did my taxes go this year?",
+  "expected_answer": "You paid 0.045 BTC in taxes. 40% went to healthcare, 30% to education, and 30% to infrastructure. Let me know if you’d like a breakdown by project.",
+  "semantic_threshold": 0.85
+}
