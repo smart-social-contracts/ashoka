@@ -7,6 +7,7 @@ import requests
 import time
 import warnings
 import os
+import glob
 
 # Suppress warnings
 warnings.filterwarnings('ignore')
@@ -25,12 +26,16 @@ except Exception as e:
     print(f"Error loading model: {e}")
     exit(1)
 
-def load_test_cases(file_path):
-    """Load test cases from JSONL file"""
+def load_test_cases(tests_dir="tests"):
+    """Load test cases from individual JSON files in the tests directory"""
     test_cases = []
-    with open(file_path, 'r') as f:
-        for line in f:
-            test_cases.append(json.loads(line.strip()))
+    json_files = glob.glob(os.path.join(tests_dir, "*.json"))
+    
+    for file_path in sorted(json_files):
+        with open(file_path, 'r') as f:
+            test_case = json.load(f)
+            test_cases.append(test_case)
+    
     return test_cases
 
 def ask_ashoka(question, api_url="http://localhost:5000/api/ask"):
@@ -62,10 +67,10 @@ def semantic_similarity(text1, text2):
     similarity = cosine_similarity([embeddings[0]], [embeddings[1]])[0][0]
     return float(similarity)
 
-def run_tests(test_file="tests/tests.jsonl"):
+def run_tests(tests_dir="tests"):
     """Run all tests and return results"""
     print("Loading test cases...")
-    test_cases = load_test_cases(test_file)
+    test_cases = load_test_cases(tests_dir)
     
     results = []
     total_tests = len(test_cases)
@@ -73,30 +78,34 @@ def run_tests(test_file="tests/tests.jsonl"):
     print(f"Running {total_tests} tests...")
     
     for i, test_case in enumerate(test_cases, 1):
-        print(f"\nTest {i}/{total_tests}: {test_case['question'][:60]}...")
+        test_name = test_case.get('name', f'test_{i}')
+        user_prompt = test_case['user_prompt']
+        print(f"\nTest {i}/{total_tests} ({test_name}): {user_prompt[:60]}...")
         
         # Ask Ashoka
-        actual_answer = ask_ashoka(test_case['question'])
+        actual_answer = ask_ashoka(user_prompt)
         expected_answer = test_case['expected_answer']
         
         # Calculate semantic similarity
         similarity = semantic_similarity(actual_answer, expected_answer)
         
-        # Determine pass/fail (threshold: 0.7)
-        passed = similarity >= 0.7
+        threshold = test_case.get('semantic_threshold', 0.7)
+        passed = similarity >= threshold
         
         result = {
             'test_id': i,
-            'question': test_case['question'],
+            'test_name': test_name,
+            'question': user_prompt,
             'expected_answer': expected_answer,
             'actual_answer': actual_answer,
             'similarity_score': similarity,
+            'threshold': threshold,
             'passed': passed
         }
         
         results.append(result)
         
-        print(f"Similarity: {similarity:.3f} - {'PASS' if passed else 'FAIL'}")
+        print(f"Similarity: {similarity:.3f} (threshold: {threshold:.3f}) - {'PASS' if passed else 'FAIL'}")
         
         # Small delay to avoid overwhelming the API
         time.sleep(1)
