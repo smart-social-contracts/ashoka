@@ -126,7 +126,7 @@ class PodManager:
                 
         except Exception as e:
             self._print(f"❌ Failed to get pod status: {e}", force=True)
-            return 'ERROR'
+            return 'Error'
     
     def wait_for_status(self, pod_id: str, target_statuses: list, timeout: int = 300) -> bool:
         """Wait for pod to reach one of the target statuses"""
@@ -135,7 +135,7 @@ class PodManager:
             current_status = self.get_pod_status(pod_id)
             if current_status in target_statuses:
                 return True
-            if current_status in ['ERROR', 'NOT_FOUND']:
+            if current_status in ['Error', 'NOT_FOUND']:
                 return False
             
             if self.verbose:
@@ -172,7 +172,7 @@ class PodManager:
                 print("RUNNING")
             return True
         
-        if current_status in ['NOT_FOUND', 'ERROR']:
+        if current_status in ['NOT_FOUND', 'Error']:
             if deploy_new_if_needed:
                 self._print("Pod not found, attempting to deploy a new pod...")
                 return self.deploy_pod(pod_type)
@@ -233,7 +233,7 @@ class PodManager:
                 print(current_status)
             return True
         
-        if current_status in ['NOT_FOUND', 'ERROR']:
+        if current_status in ['NOT_FOUND', 'Error']:
             self._print("❌ Pod not found or error getting status", force=True)
             return False
         

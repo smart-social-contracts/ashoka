@@ -31,12 +31,16 @@ test_jobs = {}
 
 def build_prompt(user_principal, realm_principal, question, realm_status=None):
     """Build complete prompt with persona + history + question + realm context"""
-    history = db_client.get_conversation_history(user_principal, realm_principal)
-    
-    # Build conversation history text
+    # Try to get conversation history, but don't fail if database is unavailable
     history_text = ""
-    for msg in history:
-        history_text += f"User: {msg['question']}\nAshoka: {msg['response']}\n\n"
+    try:
+        history = db_client.get_conversation_history(user_principal, realm_principal)
+        # Build conversation history text
+        for msg in history:
+            history_text += f"User: {msg['question']}\nAshoka: {msg['response']}\n\n"
+    except Exception as e:
+        print(f"Error: Could not load conversation history: {e}")
+        history_text = ""
     
     # Build realm context if provided
     realm_context = ""
@@ -49,7 +53,10 @@ def build_prompt(user_principal, realm_principal, question, realm_status=None):
 
 def save_to_conversation(user_principal, realm_principal, question, answer, prompt=None):
     """Save Q&A to conversation history"""
-    db_client.store_conversation(user_principal, realm_principal, question, answer, prompt)
+    try:
+        db_client.store_conversation(user_principal, realm_principal, question, answer, prompt)
+    except Exception as e:
+        print(f"Error: Could not save conversation to database: {e}")
 
 @app.route('/api/ask', methods=['POST'])
 def ask():
@@ -165,7 +172,7 @@ def run_test_background(test_id):
             process.kill()
     except Exception as e:
         test_jobs[test_id]['status'] = 'failed'
-        test_jobs[test_id]['output'] += f'\nError: {str(e)}'
+        test_jobs[test_id]['output'] += f'\nERROR: {str(e)}'
 
 @app.route('/start-test', methods=['POST'])
 def start_test():
