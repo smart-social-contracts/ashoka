@@ -20,6 +20,9 @@ CORS(app)  # Enable CORS for all routes
 # Load Ashoka persona once at startup
 PERSONA = (Path(__file__).parent / "prompts" / "governor_init.txt").read_text()
 
+# Model configuration with fallback
+ASHOKA_DEFAULT_MODEL = os.getenv('ASHOKA_DEFAULT_MODEL', 'llama3.2:1b')
+
 # Initialize database client
 db_client = DatabaseClient()
 
@@ -71,7 +74,7 @@ def ask():
                           mimetype='text/plain')
         else:
             response = requests.post(f"{ollama_url}/api/generate", json={
-                "model": "llama3.2:1b",
+                "model": ASHOKA_DEFAULT_MODEL,
                 "prompt": prompt,
                 "stream": False
             })
@@ -92,7 +95,7 @@ def stream_response(ollama_url, prompt, user_principal, realm_principal, questio
     """Generator function for streaming responses"""
     try:
         response = requests.post(f"{ollama_url}/api/generate", json={
-            "model": "llama3.2:1b",
+            "model": ASHOKA_DEFAULT_MODEL,
             "prompt": prompt,
             "stream": True
         }, stream=True)
