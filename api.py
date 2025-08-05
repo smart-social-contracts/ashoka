@@ -70,6 +70,13 @@ def ask():
     # Build complete prompt with realm context
     prompt = build_prompt(user_principal, realm_principal, question, realm_status)
     
+    # Log the complete prompt for debugging
+    print("\n" + "="*80)
+    print("COMPLETE PROMPT SENT TO OLLAMA:")
+    print("="*80)
+    print(prompt)
+    print("="*80 + "\n")
+    
     # Check if streaming is requested
     stream = data.get('stream', False)
     
