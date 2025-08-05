@@ -38,15 +38,21 @@ def load_test_cases(tests_dir="tests"):
     
     return test_cases
 
-def ask_ashoka(question, api_url="http://localhost:5000/api/ask"):
-    """Ask Ashoka a question via API"""
+def ask_ashoka(question, realm_status=None, api_url="http://localhost:5000/api/ask"):
+    """Ask Ashoka a question via API with optional realm context"""
     try:
         print(f"Asking: {question[:50]}...")
-        response = requests.post(api_url, json={
+        payload = {
             "user_principal": "test_user",
             "realm_principal": "test_realm",
             "question": question
-        }, timeout=60)  # Increased timeout
+        }
+        
+        # Add realm_status if provided
+        if realm_status:
+            payload["realm_status"] = realm_status
+            
+        response = requests.post(api_url, json=payload, timeout=60)  # Increased timeout
         
         if response.status_code == 200:
             answer = response.json().get('answer', '')
@@ -80,10 +86,11 @@ def run_tests(tests_dir="tests"):
     for i, test_case in enumerate(test_cases, 1):
         test_name = test_case.get('name', f'test_{i}')
         user_prompt = test_case['user_prompt']
+        realm_status = test_case.get('realm_status')  # Extract realm context
         print(f"\nTest {i}/{total_tests} ({test_name}): {user_prompt[:60]}...")
         
-        # Ask Ashoka
-        actual_answer = ask_ashoka(user_prompt)
+        # Ask Ashoka with realm context
+        actual_answer = ask_ashoka(user_prompt, realm_status)
         expected_answer = test_case['expected_answer']
         
         # Calculate semantic similarity

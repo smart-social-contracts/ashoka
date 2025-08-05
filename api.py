@@ -29,8 +29,8 @@ db_client = DatabaseClient()
 # In-memory test status storage
 test_jobs = {}
 
-def build_prompt(user_principal, realm_principal, question):
-    """Build complete prompt with persona + history + question"""
+def build_prompt(user_principal, realm_principal, question, realm_status=None):
+    """Build complete prompt with persona + history + question + realm context"""
     history = db_client.get_conversation_history(user_principal, realm_principal)
     
     # Build conversation history text
@@ -38,8 +38,13 @@ def build_prompt(user_principal, realm_principal, question):
     for msg in history:
         history_text += f"User: {msg['question']}\nAshoka: {msg['response']}\n\n"
     
+    # Build realm context if provided
+    realm_context = ""
+    if realm_status:
+        realm_context = f"\n\nCURRENT REALM STATUS:\n{json.dumps(realm_status, indent=2)}\n\n"
+    
     # Complete prompt
-    prompt = f"{PERSONA}\n\n{history_text}User: {question}\nAshoka:"
+    prompt = f"{PERSONA}{realm_context}\n\nCONVERSATION_HISTORY:\n{history_text}\n\nUser: {question}\nAshoka:"
     return prompt
 
 def save_to_conversation(user_principal, realm_principal, question, answer, prompt=None):
@@ -56,13 +61,14 @@ def ask():
     user_principal = data.get('user_principal')
     realm_principal = data.get('realm_principal') 
     question = data.get('question')
+    realm_status = data.get('realm_status')  # Optional realm context
     ollama_url = data.get('ollama_url', 'http://localhost:11434')
     
     if not all([user_principal, realm_principal, question]):
         return jsonify({"error": "Missing required fields"}), 400
     
-    # Build complete prompt
-    prompt = build_prompt(user_principal, realm_principal, question)
+    # Build complete prompt with realm context
+    prompt = build_prompt(user_principal, realm_principal, question, realm_status)
     
     # Check if streaming is requested
     stream = data.get('stream', False)
