@@ -132,14 +132,15 @@ def ask():
     
     """Main endpoint for asking Ashoka questions"""
     data = request.json
-    user_principal = data.get('user_principal')
-    realm_principal = data.get('realm_principal') 
+    user_principal = data.get('user_principal') or ""
+    realm_principal = data.get('realm_principal') or ""
     question = data.get('question')
     realm_status = data.get('realm_status')  # Optional realm context
     ollama_url = data.get('ollama_url', 'http://localhost:11434')
     
-    if not all([user_principal, realm_principal, question]):
-        return jsonify({"error": "Missing required fields"}), 400
+    # Validate required fields - user_principal can be empty for anonymous users
+    if not question:
+        return jsonify({"error": "Missing required fields: a question is required"}), 400
     
     # Build complete prompt with realm context
     prompt = build_prompt(user_principal, realm_principal, question, realm_status)
