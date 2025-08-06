@@ -20,28 +20,43 @@ CORS(app)  # Enable CORS for all routes
 # Load Ashoka persona once at startup
 PERSONA = (Path(__file__).parent / "prompts" / "governor_init.txt").read_text()
 
+# Model configuration with fallback
+ASHOKA_DEFAULT_MODEL = os.getenv('ASHOKA_DEFAULT_MODEL', 'llama3.2:1b')
+
 # Initialize database client
 db_client = DatabaseClient()
 
 # In-memory test status storage
 test_jobs = {}
 
-def build_prompt(user_principal, realm_principal, question):
-    """Build complete prompt with persona + history + question"""
-    history = db_client.get_conversation_history(user_principal, realm_principal)
-    
-    # Build conversation history text
+def build_prompt(user_principal, realm_principal, question, realm_status=None):
+    """Build complete prompt with persona + history + question + realm context"""
+    # Try to get conversation history, but don't fail if database is unavailable
     history_text = ""
-    for msg in history:
-        history_text += f"User: {msg['question']}\nAshoka: {msg['response']}\n\n"
+    try:
+        history = db_client.get_conversation_history(user_principal, realm_principal)
+        # Build conversation history text
+        for msg in history:
+            history_text += f"User: {msg['question']}\nAshoka: {msg['response']}\n\n"
+    except Exception as e:
+        print(f"Error: Could not load conversation history: {e}")
+        history_text = ""
+    
+    # Build realm context if provided
+    realm_context = ""
+    if realm_status:
+        realm_context = f"\n\nCURRENT REALM STATUS:\n{json.dumps(realm_status, indent=2)}\n\n"
     
     # Complete prompt
-    prompt = f"{PERSONA}\n\n{history_text}User: {question}\nAshoka:"
+    prompt = f"{PERSONA}{realm_context}\n\nCONVERSATION_HISTORY:\n{history_text}\n\nUser: {question}\nAshoka:"
     return prompt
 
 def save_to_conversation(user_principal, realm_principal, question, answer, prompt=None):
     """Save Q&A to conversation history"""
-    db_client.store_conversation(user_principal, realm_principal, question, answer, prompt)
+    try:
+        db_client.store_conversation(user_principal, realm_principal, question, answer, prompt)
+    except Exception as e:
+        print(f"Error: Could not save conversation to database: {e}")
 
 @app.route('/api/ask', methods=['POST'])
 def ask():
@@ -53,13 +68,21 @@ def ask():
     user_principal = data.get('user_principal')
     realm_principal = data.get('realm_principal') 
     question = data.get('question')
+    realm_status = data.get('realm_status')  # Optional realm context
     ollama_url = data.get('ollama_url', 'http://localhost:11434')
     
     if not all([user_principal, realm_principal, question]):
         return jsonify({"error": "Missing required fields"}), 400
     
-    # Build complete prompt
-    prompt = build_prompt(user_principal, realm_principal, question)
+    # Build complete prompt with realm context
+    prompt = build_prompt(user_principal, realm_principal, question, realm_status)
+    
+    # Log the complete prompt for debugging
+    print("\n" + "="*80)
+    print("COMPLETE PROMPT SENT TO OLLAMA:")
+    print("="*80)
+    print(prompt)
+    print("="*80 + "\n")
     
     # Check if streaming is requested
     stream = data.get('stream', False)
@@ -71,7 +94,7 @@ def ask():
                           mimetype='text/plain')
         else:
             response = requests.post(f"{ollama_url}/api/generate", json={
-                "model": "llama3.2:1b",
+                "model": ASHOKA_DEFAULT_MODEL,
                 "prompt": prompt,
                 "stream": False
             })
@@ -92,7 +115,7 @@ def stream_response(ollama_url, prompt, user_principal, realm_principal, questio
     """Generator function for streaming responses"""
     try:
         response = requests.post(f"{ollama_url}/api/generate", json={
-            "model": "llama3.2:1b",
+            "model": ASHOKA_DEFAULT_MODEL,
             "prompt": prompt,
             "stream": True
         }, stream=True)
@@ -118,6 +141,22 @@ def run_test_background(test_id):
     try:
         test_jobs[test_id]['status'] = 'running'
         test_jobs[test_id]['output'] = 'Starting test execution...\n'
+        
+        # Clean up database before running tests
+        test_jobs[test_id]['output'] += 'Cleaning up database...\n'
+        cleanup_process = subprocess.run(
+            ['./scripts/cleanup_db.sh'],
+            capture_output=True,
+            text=True,
+            timeout=30
+        )
+        
+        if cleanup_process.returncode == 0:
+            test_jobs[test_id]['output'] += cleanup_process.stdout
+        else:
+            test_jobs[test_id]['output'] += f'Database cleanup failed: {cleanup_process.stderr}\n'
+            # DO NOT continue with tests even if cleanup fails
+            raise Exception("Database cleanup failed")
         
         # Run the test_runner.py script with real-time output
         process = subprocess.Popen(
@@ -149,7 +188,7 @@ def run_test_background(test_id):
             process.kill()
     except Exception as e:
         test_jobs[test_id]['status'] = 'failed'
-        test_jobs[test_id]['output'] += f'\nError: {str(e)}'
+        test_jobs[test_id]['output'] += f'\nERROR: {str(e)}'
 
 @app.route('/start-test', methods=['POST'])
 def start_test():

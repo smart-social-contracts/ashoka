@@ -4,6 +4,48 @@
 Remote CI Test Runner Script
 This script handles pod deployment, health checking, and remote CI test execution
 Used by GitHub Actions workflows for automated testing
+
+API Endpoints Used:
+==================
+1. POST /start-test - Initiate CI test run
+2. GET /test-status/{test_id} - Check test progress  
+3. GET /test-results/{test_id} - Get detailed results
+
+Equivalent Curl Commands:
+========================
+# 1. Start remote CI test
+curl -X POST "https://POD_URL/start-test" \
+  -H "Content-Type: application/json" \
+  --max-time 30
+
+# 2. Poll test status
+curl -X GET "https://POD_URL/test-status/TEST_ID" \
+  -H "Content-Type: application/json" \
+  --max-time 30
+
+# 3. Fetch detailed results
+curl -X GET "https://POD_URL/test-results/TEST_ID" \
+  -H "Content-Type: application/json" \
+  --max-time 30
+
+Example Usage:
+==============
+# Manual testing workflow
+POD_URL="https://l8z3rgn4jxy14c-5000.proxy.runpod.net"
+
+# Start test
+RESPONSE=$(curl -s -X POST "$POD_URL/start-test" --max-time 30)
+TEST_ID=$(echo "$RESPONSE" | jq -r '.test_id')
+
+# Poll until complete
+while true; do
+    sleep 15
+    STATUS=$(curl -s -X GET "$POD_URL/test-status/$TEST_ID" --max-time 30 | jq -r '.status')
+    if [ "$STATUS" = "success" ] || [ "$STATUS" = "failed" ]; then break; fi
+done
+
+# Get results
+curl -s -X GET "$POD_URL/test-results/$TEST_ID" --max-time 30 | jq '.'
 """
 
 import os
@@ -56,6 +98,14 @@ class RemoteCITestRunner:
         
         try:
             self.pod_url = "https://" + self.pod_url if not self.pod_url.startswith("https://") else self.pod_url
+            
+            # Log equivalent curl command
+            print(f"📋 Equivalent curl command:")
+            print(f"curl -X POST \"{self.pod_url}/start-test\" \\")
+            print(f"  -H \"Content-Type: application/json\" \\")
+            print(f"  --max-time 30")
+            print()
+            
             response = requests.post(f"{self.pod_url}/start-test", timeout=30)
             response.raise_for_status()
             test_response = response.text
@@ -83,6 +133,14 @@ class RemoteCITestRunner:
             elapsed += self.poll_interval
             
             try:
+                # Log equivalent curl command (only on first poll to avoid spam)
+                if elapsed == self.poll_interval:
+                    print(f"📋 Equivalent curl command:")
+                    print(f"curl -X GET \"{self.pod_url}/test-status/{test_id}\" \\")
+                    print(f"  -H \"Content-Type: application/json\" \\")
+                    print(f"  --max-time 30")
+                    print()
+                
                 response = requests.get(f"{self.pod_url}/test-status/{test_id}", timeout=30)
                 response.raise_for_status()
                 status_response = response.text
@@ -116,6 +174,14 @@ class RemoteCITestRunner:
         """Fetch and display detailed test results"""
         try:
             print("\n📊 Fetching detailed test results...")
+            
+            # Log equivalent curl command
+            print(f"📋 Equivalent curl command:")
+            print(f"curl -X GET \"{self.pod_url}/test-results/{test_id}\" \\")
+            print(f"  -H \"Content-Type: application/json\" \\")
+            print(f"  --max-time 30")
+            print()
+            
             response = requests.get(f"{self.pod_url}/test-results/{test_id}", timeout=30)
             response.raise_for_status()
             
