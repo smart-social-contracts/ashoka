@@ -16,6 +16,10 @@ import time
 import atexit
 from database.db_client import DatabaseClient
 
+def log(message):
+    """Helper function to print with flush=True for better logging"""
+    print(message, flush=True)
+
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
 
@@ -48,7 +52,7 @@ def build_prompt(user_principal, realm_principal, question, realm_status=None):
         for msg in history:
             history_text += f"User: {msg['question']}\nAshoka: {msg['response']}\n\n"
     except Exception as e:
-        print(f"Error: Could not load conversation history: {e}")
+        log(f"Error: Could not load conversation history: {e}")
         history_text = ""
     
     # Build realm context if provided
@@ -65,13 +69,13 @@ def save_to_conversation(user_principal, realm_principal, question, answer, prom
     try:
         db_client.store_conversation(user_principal, realm_principal, question, answer, prompt)
     except Exception as e:
-        print(f"Error: Could not save conversation to database: {e}")
+        log(f"Error: Could not save conversation to database: {e}")
 
 def update_activity():
     """Update the last activity timestamp"""
     global last_activity_time
     last_activity_time = time.time()
-    print(f"Activity updated at {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(last_activity_time))}")
+    log(f"Activity updated at {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(last_activity_time))}")
 
 def monitor_inactivity():
     """Background thread to monitor inactivity and exit script if timeout reached"""
@@ -87,18 +91,18 @@ def monitor_inactivity():
             current_time = time.time()
             inactive_duration = current_time - last_activity_time
             
-            print(f"Inactivity check: {inactive_duration:.0f}s since last activity (timeout: {INACTIVITY_TIMEOUT_SECONDS}s)")
+            log(f"Inactivity check: {inactive_duration:.0f}s since last activity (timeout: {INACTIVITY_TIMEOUT_SECONDS}s)")
             
             if INACTIVITY_TIMEOUT_SECONDS > 0 and inactive_duration >= INACTIVITY_TIMEOUT_SECONDS:
-                print(f"⚠️  INACTIVITY TIMEOUT REACHED! Inactive for {inactive_duration:.0f} seconds")
-                print("🛑 Exiting Python script due to inactivity...")
+                log(f"⚠️  INACTIVITY TIMEOUT REACHED! Inactive for {inactive_duration:.0f} seconds")
+                log("🛑 Exiting Python script due to inactivity...")
                 
                 # Exit the monitoring thread and the entire script
                 shutdown_initiated = True
                 os._exit(0)  # Force exit the entire Python process
                 
         except Exception as e:
-            print(f"Error in inactivity monitor: {e}")
+            log(f"Error in inactivity monitor: {e}")
             time.sleep(INACTIVITY_CHECK_INTERVAL_SECONDS)  # Continue monitoring even if there's an error
 
 def start_inactivity_monitor():
@@ -107,28 +111,28 @@ def start_inactivity_monitor():
     
     if INACTIVITY_TIMEOUT_SECONDS > 0:
         if inactivity_monitor_thread is None or not inactivity_monitor_thread.is_alive():
-            print(f"🕐 Starting inactivity monitor (timeout: {INACTIVITY_TIMEOUT_SECONDS}s = {INACTIVITY_TIMEOUT_SECONDS/3600:.1f}h)")
+            log(f"🕐 Starting inactivity monitor (timeout: {INACTIVITY_TIMEOUT_SECONDS}s = {INACTIVITY_TIMEOUT_SECONDS/3600:.1f}h)")
             inactivity_monitor_thread = threading.Thread(target=monitor_inactivity, daemon=True)
             inactivity_monitor_thread.start()
             
             # Register cleanup function
             atexit.register(lambda: globals().update({'shutdown_initiated': True}))
     else:
-        print("🕐 Inactivity timeout disabled (INACTIVITY_TIMEOUT_SECONDS=0)")
+        log("🕐 Inactivity timeout disabled (INACTIVITY_TIMEOUT_SECONDS=0)")
 
 def stop_inactivity_monitor():
     """Stop the inactivity monitoring thread"""
     global shutdown_initiated
     shutdown_initiated = True
-    print("🛑 Inactivity monitor stopped")
+    log("🛑 Inactivity monitor stopped")
 
 @app.route('/api/ask', methods=['POST'])
 def ask():
     # Update activity timestamp
     update_activity()
     
-    print("Received ask request")
-    print(request.json)
+    log("Received ask request")
+    log(request.json)
     
     """Main endpoint for asking Ashoka questions"""
     data = request.json
@@ -146,11 +150,11 @@ def ask():
     prompt = build_prompt(user_principal, realm_principal, question, realm_status)
     
     # Log the complete prompt for debugging
-    print("\n" + "="*80)
-    print("COMPLETE PROMPT SENT TO OLLAMA:")
-    print("="*80)
-    print(prompt)
-    print("="*80 + "\n")
+    log("\n" + "="*80)
+    log("COMPLETE PROMPT SENT TO OLLAMA:")
+    log("="*80)
+    log(prompt)
+    log("="*80 + "\n")
     
     # Check if streaming is requested
     stream = data.get('stream', False)
@@ -176,7 +180,7 @@ def ask():
                 "answer": answer
             })
     except Exception as e:
-        print(f"Error: {traceback.format_exc()}")
+        log(f"Error: {traceback.format_exc()}")
         return jsonify({"error": str(e)}), 500
 
 def stream_response(ollama_url, prompt, user_principal, realm_principal, question):
