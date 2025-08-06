@@ -33,6 +33,7 @@ test_jobs = {}
 
 # Inactivity timeout configuration
 INACTIVITY_TIMEOUT_SECONDS = int(os.getenv('INACTIVITY_TIMEOUT_SECONDS', '0'))  # Default: disabled
+INACTIVITY_CHECK_INTERVAL_SECONDS = int(os.getenv('INACTIVITY_CHECK_INTERVAL_SECONDS', '60'))
 last_activity_time = time.time()
 inactivity_monitor_thread = None
 shutdown_initiated = False
@@ -78,7 +79,7 @@ def monitor_inactivity():
     
     while not shutdown_initiated:
         try:
-            time.sleep(60)  # Check every minute
+            time.sleep(INACTIVITY_CHECK_INTERVAL_SECONDS)  # Check every minute
             
             if shutdown_initiated:
                 break
@@ -98,7 +99,7 @@ def monitor_inactivity():
                 
         except Exception as e:
             print(f"Error in inactivity monitor: {e}")
-            time.sleep(60)  # Continue monitoring even if there's an error
+            time.sleep(INACTIVITY_CHECK_INTERVAL_SECONDS)  # Continue monitoring even if there's an error
 
 def start_inactivity_monitor():
     """Start the inactivity monitoring thread"""
