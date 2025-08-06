@@ -142,6 +142,22 @@ def run_test_background(test_id):
         test_jobs[test_id]['status'] = 'running'
         test_jobs[test_id]['output'] = 'Starting test execution...\n'
         
+        # Clean up database before running tests
+        test_jobs[test_id]['output'] += 'Cleaning up database...\n'
+        cleanup_process = subprocess.run(
+            ['./scripts/cleanup_db.sh'],
+            capture_output=True,
+            text=True,
+            timeout=30
+        )
+        
+        if cleanup_process.returncode == 0:
+            test_jobs[test_id]['output'] += cleanup_process.stdout
+        else:
+            test_jobs[test_id]['output'] += f'Database cleanup failed: {cleanup_process.stderr}\n'
+            # DO NOT continue with tests even if cleanup fails
+            raise Exception("Database cleanup failed")
+        
         # Run the test_runner.py script with real-time output
         process = subprocess.Popen(
             ['./test_runner.sh'],  # -u for unbuffered output
