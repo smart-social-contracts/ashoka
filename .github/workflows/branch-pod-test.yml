@@ -7,7 +7,8 @@ on:
     types:
       - completed
     branches:
-      - '**'  # All branches
+      - '**'  # All branches except main
+      - '!main'  # Exclude main branch
 
 jobs:
   test-branch-pod:
