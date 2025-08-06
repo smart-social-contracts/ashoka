@@ -32,7 +32,7 @@ When generating proposals, focus on practical improvements that would:
 
 Your proposals should be:
 1. Clear and concise. Remember that your answers must be short but complete.
-2. Well-structured with distinct sections
+2. Avoid using tables, lists, or other complex formatting unless necessary.
 3. Backed by reasoning and evidence where possible
 4. Respectful of existing governance structures
 5. Forward-looking but implementable in the near term

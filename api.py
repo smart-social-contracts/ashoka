@@ -20,7 +20,7 @@ app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
 
 # Load Ashoka persona once at startup
-PERSONA = (Path(__file__).parent / "prompts" / "governor_init.txt").read_text()
+PERSONA = (Path(__file__).parent / "prompts" / "persona.txt").read_text()
 
 # Model configuration with fallback
 ASHOKA_DEFAULT_MODEL = os.getenv('ASHOKA_DEFAULT_MODEL', 'llama3.2:1b')
