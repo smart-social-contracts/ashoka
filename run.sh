@@ -118,15 +118,4 @@ done
 
 # Run API server
 echo "Starting API server..."
-python3 api.py 2>&1 | tee -a logs/api.log &
-
-
-# # Create AI governor
-# python3 cli/main.py create 2>&1 | tee -a logs/cli_main_create.log
-# # #--ollama-url http://localhost:11434 --realm-id $ASHOKA_REALM_ID
-
-# # Keep container running
-# echo "Container is ready. Use 'docker exec' to run commands or attach to this container."
-# tail -f /dev/null
-
-sleep 999999999
+python3 api.py 2>&1 | tee -a logs/api.log

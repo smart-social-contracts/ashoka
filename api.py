@@ -12,6 +12,8 @@ import threading
 import subprocess
 import uuid
 import os
+import time
+import atexit
 from database.db_client import DatabaseClient
 
 app = Flask(__name__)
@@ -28,6 +30,12 @@ db_client = DatabaseClient()
 
 # In-memory test status storage
 test_jobs = {}
+
+# Inactivity timeout configuration
+INACTIVITY_TIMEOUT_SECONDS = int(os.getenv('INACTIVITY_TIMEOUT_SECONDS', '0'))  # Default: disabled
+last_activity_time = time.time()
+inactivity_monitor_thread = None
+shutdown_initiated = False
 
 def build_prompt(user_principal, realm_principal, question, realm_status=None):
     """Build complete prompt with persona + history + question + realm context"""
@@ -58,8 +66,66 @@ def save_to_conversation(user_principal, realm_principal, question, answer, prom
     except Exception as e:
         print(f"Error: Could not save conversation to database: {e}")
 
+def update_activity():
+    """Update the last activity timestamp"""
+    global last_activity_time
+    last_activity_time = time.time()
+    print(f"Activity updated at {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(last_activity_time))}")
+
+def monitor_inactivity():
+    """Background thread to monitor inactivity and exit script if timeout reached"""
+    global shutdown_initiated
+    
+    while not shutdown_initiated:
+        try:
+            time.sleep(60)  # Check every minute
+            
+            if shutdown_initiated:
+                break
+                
+            current_time = time.time()
+            inactive_duration = current_time - last_activity_time
+            
+            print(f"Inactivity check: {inactive_duration:.0f}s since last activity (timeout: {INACTIVITY_TIMEOUT_SECONDS}s)")
+            
+            if INACTIVITY_TIMEOUT_SECONDS > 0 and inactive_duration >= INACTIVITY_TIMEOUT_SECONDS:
+                print(f"⚠️  INACTIVITY TIMEOUT REACHED! Inactive for {inactive_duration:.0f} seconds")
+                print("🛑 Exiting Python script due to inactivity...")
+                
+                # Exit the monitoring thread and the entire script
+                shutdown_initiated = True
+                os._exit(0)  # Force exit the entire Python process
+                
+        except Exception as e:
+            print(f"Error in inactivity monitor: {e}")
+            time.sleep(60)  # Continue monitoring even if there's an error
+
+def start_inactivity_monitor():
+    """Start the inactivity monitoring thread"""
+    global inactivity_monitor_thread
+    
+    if INACTIVITY_TIMEOUT_SECONDS > 0:
+        if inactivity_monitor_thread is None or not inactivity_monitor_thread.is_alive():
+            print(f"🕐 Starting inactivity monitor (timeout: {INACTIVITY_TIMEOUT_SECONDS}s = {INACTIVITY_TIMEOUT_SECONDS/3600:.1f}h)")
+            inactivity_monitor_thread = threading.Thread(target=monitor_inactivity, daemon=True)
+            inactivity_monitor_thread.start()
+            
+            # Register cleanup function
+            atexit.register(lambda: globals().update({'shutdown_initiated': True}))
+    else:
+        print("🕐 Inactivity timeout disabled (INACTIVITY_TIMEOUT_SECONDS=0)")
+
+def stop_inactivity_monitor():
+    """Stop the inactivity monitoring thread"""
+    global shutdown_initiated
+    shutdown_initiated = True
+    print("🛑 Inactivity monitor stopped")
+
 @app.route('/api/ask', methods=['POST'])
 def ask():
+    # Update activity timestamp
+    update_activity()
+    
     print("Received ask request")
     print(request.json)
     
@@ -193,6 +259,8 @@ def run_test_background(test_id):
 @app.route('/start-test', methods=['POST'])
 def start_test():
     """Start CI test in background"""
+    # Update activity timestamp
+    update_activity()
     test_id = str(uuid.uuid4())
     
     # Initialize test job
@@ -214,6 +282,8 @@ def start_test():
 @app.route('/test-status/<test_id>', methods=['GET'])
 def test_status(test_id):
     """Get test status"""
+    # Update activity timestamp
+    update_activity()
     if test_id not in test_jobs:
         return jsonify({'error': 'Test ID not found'}), 404
     
@@ -227,6 +297,8 @@ def test_status(test_id):
 @app.route('/test-results/<test_id>', methods=['GET'])
 def test_results(test_id):
     """Get detailed test results"""
+    # Update activity timestamp
+    update_activity()
     if test_id not in test_jobs:
         return jsonify({'error': 'Test ID not found'}), 404
     
@@ -249,7 +321,21 @@ def test_results(test_id):
 
 @app.route('/', methods=['GET'])
 def health():
-    return jsonify({"status": "ok"})
+    # Update activity timestamp
+    update_activity()
+    
+    return jsonify({
+        "status": "ok",
+        "inactivity_timeout_seconds": INACTIVITY_TIMEOUT_SECONDS,
+        "seconds_since_last_activity": int(time.time() - last_activity_time) if INACTIVITY_TIMEOUT_SECONDS > 0 else None
+    })
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+    # Start inactivity monitoring if enabled
+    start_inactivity_monitor()
+    
+    try:
+        app.run(host='0.0.0.0', port=5000)
+    finally:
+        # Ensure cleanup on exit
+        stop_inactivity_monitor()
