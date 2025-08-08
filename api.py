@@ -339,6 +339,23 @@ def test_results(test_id):
     except Exception as e:
         return jsonify({'error': f'Failed to read test results: {str(e)}'}), 500
 
+@app.route('/suggestions', methods=['GET'])
+def get_suggestions():
+    """Get LLM chat suggestions"""
+    # Update activity timestamp
+    update_activity()
+    
+    # Return contextual suggestions for the LLM chat interface
+    suggestions = [
+        "What is a realm?",
+        "What is an AI governance assistant?", 
+        "Why should I join this realm?"
+    ]
+    
+    return jsonify({
+        "suggestions": suggestions
+    })
+
 @app.route('/', methods=['GET'])
 def health():
     # Update activity timestamp
