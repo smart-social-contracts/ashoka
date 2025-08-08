@@ -15,7 +15,6 @@ import os
 import time
 import atexit
 from database.db_client import DatabaseClient
-from pod_manager import PodManager
 
 
 def log(message):
@@ -105,6 +104,7 @@ def monitor_inactivity():
                 # Stop this pod using pod_manager directly
                 try:
                     log("🛑 Stopping pod due to inactivity timeout...")
+                    from pod_manager import PodManager
                     pod_manager = PodManager(verbose=True)
                     success = pod_manager.stop_pod('main')
                     
