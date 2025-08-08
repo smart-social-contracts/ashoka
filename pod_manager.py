@@ -411,7 +411,7 @@ class PodManager:
                         support_public_ip=True,
                         start_ssh=True,
                         # env={'INACTIVITY_TIMEOUT_SECONDS': self.cnfig.get('INACTIVITY_TIMEOUT_SECONDS')} if pod_type == "branch" else None
-                        env={'INACTIVITY_TIMEOUT_SECONDS': 3600}
+                        env={'INACTIVITY_TIMEOUT_SECONDS': 180}
                     )
                     
                     if self.verbose:

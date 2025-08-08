@@ -15,6 +15,8 @@ import os
 import time
 import atexit
 from database.db_client import DatabaseClient
+from pod_manager import PodManager
+
 
 def log(message):
     """Helper function to print with flush=True for better logging"""
@@ -99,7 +101,19 @@ def monitor_inactivity():
                 
                 # Exit the monitoring thread and the entire script
                 shutdown_initiated = True
-                os._exit(0)  # Force exit the entire Python process
+
+                # Stop this pod using pod_manager directly
+                try:
+                    log("🛑 Stopping pod due to inactivity timeout...")
+                    pod_manager = PodManager(verbose=True)
+                    success = pod_manager.stop_pod('main')
+                    
+                    if success:
+                        log("✅ Pod stopped successfully")
+                    else:
+                        log("⚠️ Pod stop failed")
+                except Exception as e:
+                    log(f"❌ Error stopping pod: {e}")
                 
         except Exception as e:
             log(f"Error in inactivity monitor: {e}")
