@@ -341,20 +341,102 @@ def test_results(test_id):
 
 @app.route('/suggestions', methods=['GET'])
 def get_suggestions():
-    """Get LLM chat suggestions"""
+    """Get LLM chat suggestions based on conversation history"""
     # Update activity timestamp
     update_activity()
     
-    # Return contextual suggestions for the LLM chat interface
-    suggestions = [
-        "What is a realm?",
-        "What is an AI governance assistant?", 
-        "Why should I join this realm?"
-    ]
+    # Get parameters from query string
+    user_principal = request.args.get('user_principal', '')
+    realm_principal = request.args.get('realm_principal', '')
+    ollama_url = request.args.get('ollama_url', 'http://localhost:11434')
     
-    return jsonify({
-        "suggestions": suggestions
-    })
+    try:
+        # Get conversation history for context
+        history_text = ""
+        try:
+            history = db_client.get_conversation_history(user_principal, realm_principal)
+            # Build conversation history text (last 5 exchanges for context)
+            recent_history = history[-5:] if len(history) > 5 else history
+            for msg in recent_history:
+                history_text += f"User: {msg['question']}\nAshoka: {msg['response']}\n\n"
+        except Exception as e:
+            log(f"Error: Could not load conversation history for suggestions: {e}")
+            history_text = ""
+        
+        # Create a specialized prompt for generating suggestions
+        suggestions_prompt = f"""{PERSONA}
+
+CONVERSATION_HISTORY:
+{history_text}
+
+Based on the conversation history above, generate 3 relevant follow-up questions that the user might want to ask next. The suggestions should:
+1. Be natural follow-up questions based on the conversation context
+2. Help the user explore related topics or dive deeper into the subject
+3. Be concise and actionable (under 50 characters each)
+4. Be relevant to AI governance, realms, and the Ashoka assistant's capabilities
+
+If there's no conversation history, provide general introductory questions about realms and AI governance.
+
+Format your response as exactly 3 questions, one per line, with no numbering or bullet points:"""
+
+        # Send to Ollama to generate suggestions
+        response = requests.post(f"{ollama_url}/api/generate", json={
+            "model": ASHOKA_DEFAULT_MODEL,
+            "prompt": suggestions_prompt,
+            "stream": False
+        })
+        
+        if response.status_code == 200:
+            llm_response = response.json()['response'].strip()
+            
+            # Parse the response into individual suggestions
+            suggestions = []
+            lines = llm_response.split('\n')
+            for line in lines:
+                line = line.strip()
+                if line and not line.startswith('#') and not line.startswith('-') and not line.startswith('*'):
+                    # Clean up any numbering or formatting
+                    cleaned_line = line
+                    # Remove common prefixes like "1.", "2.", etc.
+                    import re
+                    cleaned_line = re.sub(r'^\d+\.\s*', '', cleaned_line)
+                    cleaned_line = re.sub(r'^[-*]\s*', '', cleaned_line)
+                    
+                    if cleaned_line:
+                        suggestions.append(cleaned_line)
+            
+            # Ensure we have exactly 3 suggestions
+            if len(suggestions) < 3:
+                # Add fallback suggestions if needed
+                fallback_suggestions = [
+                    "What is a realm?",
+                    "What is an AI governance assistant?", 
+                    "Why should I join this realm?"
+                ]
+                suggestions.extend(fallback_suggestions[len(suggestions):3])
+            elif len(suggestions) > 3:
+                suggestions = suggestions[:3]
+            
+            log(f"Generated dynamic suggestions: {suggestions}")
+            
+            return jsonify({
+                "suggestions": suggestions
+            })
+        else:
+            raise Exception(f"Ollama API error: {response.status_code}")
+            
+    except Exception as e:
+        log(f"Error generating dynamic suggestions: {e}")
+        # Fallback to static suggestions on error
+        suggestions = [
+            "What is a realm?",
+            "What is an AI governance assistant?", 
+            "Why should I join this realm?"
+        ]
+        
+        return jsonify({
+            "suggestions": suggestions
+        })
 
 @app.route('/', methods=['GET'])
 def health():
