@@ -106,7 +106,7 @@ def monitor_inactivity():
                     log("🛑 Stopping pod due to inactivity timeout...")
                     from pod_manager import PodManager
                     pod_manager = PodManager(verbose=True)
-                    success = pod_manager.stop_pod('main')
+                    success = pod_manager.stop_pod(os.getenv('POD_TYPE'))
                     
                     if success:
                         log("✅ Pod stopped successfully")
