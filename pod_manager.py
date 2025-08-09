@@ -414,7 +414,7 @@ class PodManager:
                         env={
                             'RUNPOD_API_KEY': self.api_key,
                             'POD_TYPE': pod_type,
-                            'INACTIVITY_TIMEOUT_SECONDS': 180}
+                            'INACTIVITY_TIMEOUT_SECONDS': 3600}
                     )
                     
                     if self.verbose:
