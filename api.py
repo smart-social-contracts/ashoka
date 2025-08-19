@@ -163,6 +163,20 @@ def ask():
     if not question:
         return jsonify({"error": "Missing required fields: a question is required"}), 400
     
+    # If realm_principal is provided but no realm_status, try to fetch from database
+    log(f"Fetching realm status for {realm_principal}")
+    log(f"Realm status: {realm_status}")
+    if realm_principal and not realm_status:
+        try:
+            realm_status = realm_status_service.get_realm_status_summary(realm_principal)
+            if realm_status:
+                log(f"Retrieved realm status from database for {realm_principal}")
+            else:
+                log(f"No realm status found in database for {realm_principal}")
+        except Exception as e:
+            log(f"Error retrieving realm status from database: {e}")
+            realm_status = None
+    
     # Build complete prompt with realm context
     prompt = build_prompt(user_principal, realm_principal, question, realm_status)
     

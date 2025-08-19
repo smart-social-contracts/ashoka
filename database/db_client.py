@@ -130,7 +130,10 @@ class DatabaseClient:
                 if result:
                     result = dict(result)
                     if result['status_data']:
-                        result['status_data'] = json.loads(result['status_data'])
+                        # Handle case where status_data might already be a dict or need JSON parsing
+                        if isinstance(result['status_data'], str):
+                            result['status_data'] = json.loads(result['status_data'])
+                        # If it's already a dict, leave it as is
                 return result
         except Exception as e:
             logger.error(f"Failed to get latest realm status: {e}")
@@ -151,7 +154,10 @@ class DatabaseClient:
                 for row in cursor.fetchall():
                     result = dict(row)
                     if result['status_data']:
-                        result['status_data'] = json.loads(result['status_data'])
+                        # Handle case where status_data might already be a dict or need JSON parsing
+                        if isinstance(result['status_data'], str):
+                            result['status_data'] = json.loads(result['status_data'])
+                        # If it's already a dict, leave it as is
                     results.append(result)
                 return results
         except Exception as e:
@@ -172,7 +178,10 @@ class DatabaseClient:
                 for row in cursor.fetchall():
                     result = dict(row)
                     if result['status_data']:
-                        result['status_data'] = json.loads(result['status_data'])
+                        # Handle case where status_data might already be a dict or need JSON parsing
+                        if isinstance(result['status_data'], str):
+                            result['status_data'] = json.loads(result['status_data'])
+                        # If it's already a dict, leave it as is
                     results.append(result)
                 return results
         except Exception as e:
