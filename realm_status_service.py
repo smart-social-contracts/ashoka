@@ -4,6 +4,7 @@ Realm Status Service - Fetches and stores status data from Realm canisters
 """
 import json
 import logging
+import os
 import subprocess
 import time
 from typing import Dict, List, Optional

@@ -73,13 +73,12 @@ Create `realms_config.json` or set `REALMS_CONFIG` environment variable:
 ## Usage Examples
 
 ### Fetch Single Realm Status
-
 ```bash
 curl -X POST http://localhost:5000/api/realm-status/fetch \
   -H "Content-Type: application/json" \
   -d '{
     "realm_principal": "rdmx6-jaaaa-aaaah-qcaiq-cai",
-    "realm_url": "https://rdmx6-jaaaa-aaaah-qcaiq-cai.ic0.app"
+    "network": "ic"
   }'
 ```
 
