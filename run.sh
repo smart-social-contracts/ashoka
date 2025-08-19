@@ -118,4 +118,4 @@ done
 
 # Run API server
 echo "Starting API server..."
-python3 api.py 2>&1 | tee -a logs/api.log &
+./start_or_restart_api.sh

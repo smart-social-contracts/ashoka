@@ -65,6 +65,7 @@ COPY .git .git
 COPY tests tests
 COPY run.sh run.sh
 COPY start.sh start.sh
+COPY start_or_restart_api.sh start_or_restart_api.sh
 COPY pod_manager.py pod_manager.py
 COPY requirements.txt requirements.txt
 COPY requirements-dev.txt requirements-dev.txt

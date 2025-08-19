@@ -173,6 +173,19 @@ def ask():
                 log(f"Retrieved realm status from database for {realm_principal}")
             else:
                 log(f"No realm status found in database for {realm_principal}")
+                # Fetch and store fresh data from the realm canister
+                log(f"Fetching and storing fresh realm status from canister {realm_principal}")
+                success = realm_status_service.fetch_and_store_realm_status(realm_principal)
+                if success:
+                    log(f"Successfully fetched and stored realm status")
+                    # Now try to get it from the database again
+                    realm_status = realm_status_service.get_realm_status_summary(realm_principal)
+                    if realm_status:
+                        log(f"Retrieved freshly stored realm status from database")
+                    else:
+                        log(f"Warning: Failed to retrieve freshly stored realm status")
+                else:
+                    log(f"Failed to fetch realm status from canister {realm_principal}")
         except Exception as e:
             log(f"Error retrieving realm status from database: {e}")
             realm_status = None
