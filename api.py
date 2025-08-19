@@ -46,26 +46,180 @@ last_activity_time = time.time()
 inactivity_monitor_thread = None
 shutdown_initiated = False
 
+def build_structured_realm_context(realm_status):
+    """Build structured, LLM-friendly realm context"""
+    if not realm_status:
+        return ""
+    
+    status_data = realm_status.get('status_data', {})
+    
+    # Extract key metrics
+    users_count = status_data.get('users_count', 0)
+    organizations_count = status_data.get('organizations_count', 0)
+    proposals_count = status_data.get('proposals_count', 0)
+    votes_count = status_data.get('votes_count', 0)
+    mandates_count = status_data.get('mandates_count', 0)
+    tasks_count = status_data.get('tasks_count', 0)
+    transfers_count = status_data.get('transfers_count', 0)
+    extensions = status_data.get('extensions', [])
+    realm_name = status_data.get('realm_name', 'Unnamed Realm')
+    health_score = realm_status.get('health_score', 0)
+    last_updated = realm_status.get('last_updated', 'Unknown')
+    
+    # Calculate derived metrics
+    total_governance_activity = proposals_count + votes_count + mandates_count
+    total_operational_activity = tasks_count + transfers_count
+    
+    # Determine realm characteristics
+    if users_count == 0:
+        size_category = "Empty (Setup Phase)"
+        activity_level = "No Activity"
+    elif users_count < 10:
+        size_category = "Small Community"
+    elif users_count < 50:
+        size_category = "Medium Community"
+    elif users_count < 200:
+        size_category = "Large Community"
+    else:
+        size_category = "Very Large Community"
+    
+    if users_count > 0:
+        if total_governance_activity == 0:
+            activity_level = "No Governance Activity"
+        elif total_governance_activity < 5:
+            activity_level = "Low Governance Activity"
+        elif total_governance_activity < 20:
+            activity_level = "Moderate Governance Activity"
+        else:
+            activity_level = "High Governance Activity"
+    
+    # Build structured context
+    context = f"""\n\n=== REALM ANALYSIS ===
+Realm: {realm_name}
+Principal: {realm_status.get('realm_principal', 'Unknown')}
+Health Score: {health_score}/100
+Size: {size_category} ({users_count} users)
+Activity: {activity_level}
+Last Updated: {last_updated}
+
+=== COMMUNITY STRUCTURE ===
+• Users: {users_count}
+• Organizations: {organizations_count}
+• Extensions: {len(extensions)}
+
+=== GOVERNANCE METRICS ===
+• Proposals: {proposals_count}
+• Votes: {votes_count}
+• Active Mandates: {mandates_count}
+• Total Governance Actions: {total_governance_activity}
+
+=== OPERATIONAL METRICS ===
+• Tasks: {tasks_count}
+• Transfers: {transfers_count}
+• Total Operations: {total_operational_activity}"""
+    
+    # Add extension details
+    if extensions:
+        context += "\n\n=== INSTALLED EXTENSIONS ==="
+        for ext in extensions:
+            ext_name = ext.get('name', 'Unknown')
+            ext_version = ext.get('version', 'Unknown')
+            context += f"\n• {ext_name} (v{ext_version})"
+    
+    # Add governance insights
+    context += "\n\n=== GOVERNANCE INSIGHTS ==="
+    
+    if users_count == 0:
+        context += "\n• Realm is in setup phase - no users registered yet"
+    elif organizations_count == 0:
+        context += "\n• No organizations formed - governance structure is informal"
+    elif total_governance_activity == 0:
+        context += "\n• No governance activity - community may need engagement initiatives"
+    
+    if users_count > 0 and proposals_count > 0:
+        avg_votes_per_proposal = votes_count / proposals_count
+        if avg_votes_per_proposal < 0.3:
+            context += "\n• Low voting participation - consider engagement strategies"
+        elif avg_votes_per_proposal > 2.0:
+            context += "\n• High voting engagement - healthy democratic participation"
+    
+    if len(extensions) == 0:
+        context += "\n• Basic governance only - no extensions installed"
+    elif any(ext.get('name') == 'demo_loader' for ext in extensions):
+        context += "\n• Demo data may be present - realm might be in testing/demo mode"
+    elif any(ext.get('name') == 'justice_litigation' for ext in extensions):
+        context += "\n• Justice system enabled - realm has legal dispute resolution"
+    
+    context += "\n\n"
+    return context
+
+def build_user_context(user_principal, realm_principal):
+    """Build user-specific context"""
+    if not user_principal:
+        return "\n=== USER CONTEXT ===\nAnonymous user - no historical data available\n\n"
+    
+    try:
+        history = db_client.get_conversation_history(user_principal, realm_principal)
+        
+        if not history:
+            return f"\n=== USER CONTEXT ===\nUser: {user_principal[:8]}...\nFirst-time user - no previous conversations\n\n"
+        
+        total_conversations = len(history)
+        recent_topics = []
+        
+        # Analyze recent conversation topics
+        for msg in history[-3:]:
+            question = msg['question'].lower()
+            if any(word in question for word in ['proposal', 'vote', 'governance']):
+                recent_topics.append('governance')
+            elif any(word in question for word in ['user', 'member', 'community']):
+                recent_topics.append('community')
+            elif any(word in question for word in ['extension', 'feature', 'functionality']):
+                recent_topics.append('extensions')
+            elif any(word in question for word in ['health', 'status', 'metrics']):
+                recent_topics.append('analytics')
+        
+        context = f"\n=== USER CONTEXT ===\nUser: {user_principal[:8]}...\nTotal Conversations: {total_conversations}\n"
+        
+        if recent_topics:
+            unique_topics = list(set(recent_topics))
+            context += f"Recent Interest Areas: {', '.join(unique_topics)}\n"
+        
+        context += "\n"
+        return context
+        
+    except Exception as e:
+        log(f"Error building user context: {e}")
+        return f"\n=== USER CONTEXT ===\nUser: {user_principal[:8]}...\nError loading user history\n\n"
+
 def build_prompt(user_principal, realm_principal, question, realm_status=None):
-    """Build complete prompt with persona + history + question + realm context"""
-    # Try to get conversation history, but don't fail if database is unavailable
+    """Build complete prompt with persona + structured context + history + question"""
+    # Build structured realm context
+    realm_context = build_structured_realm_context(realm_status)
+    
+    # Build user context
+    user_context = build_user_context(user_principal, realm_principal)
+    
+    # Get conversation history for context
     history_text = ""
     try:
         history = db_client.get_conversation_history(user_principal, realm_principal)
-        # Build conversation history text
-        for msg in history:
+        # Only include last 3 exchanges to keep context manageable
+        recent_history = history[-3:] if len(history) > 3 else history
+        for msg in recent_history:
             history_text += f"User: {msg['question']}\nAshoka: {msg['response']}\n\n"
     except Exception as e:
         log(f"Error: Could not load conversation history: {e}")
         history_text = ""
     
-    # Build realm context if provided
-    realm_context = ""
-    if realm_status:
-        realm_context = f"\n\nCURRENT REALM STATUS:\n{json.dumps(realm_status, indent=2)}\n\n"
+    # Complete prompt with structured context
+    prompt = f"{PERSONA}{realm_context}{user_context}"
     
-    # Complete prompt
-    prompt = f"{PERSONA}{realm_context}\n\nCONVERSATION_HISTORY:\n{history_text}\n\nUser: {question}\nAshoka:"
+    if history_text:
+        prompt += f"=== RECENT CONVERSATION HISTORY ===\n{history_text}"
+    
+    prompt += f"=== CURRENT QUESTION ===\nUser: {question}\nAshoka:"
+    
     return prompt
 
 def save_to_conversation(user_principal, realm_principal, question, answer, prompt=None):
@@ -371,7 +525,7 @@ def test_results(test_id):
 
 @app.route('/suggestions', methods=['GET'])
 def get_suggestions():
-    """Get LLM chat suggestions based on conversation history"""
+    """Get contextual chat suggestions based on realm status and conversation history"""
     # Update activity timestamp
     update_activity()
     
@@ -381,31 +535,46 @@ def get_suggestions():
     ollama_url = request.args.get('ollama_url', 'http://localhost:11434')
     
     try:
+        # Get realm status for context-aware suggestions
+        realm_status = None
+        if realm_principal:
+            try:
+                realm_status = realm_status_service.get_realm_status_summary(realm_principal)
+            except Exception as e:
+                log(f"Error getting realm status for suggestions: {e}")
+        
         # Get conversation history for context
         history_text = ""
         try:
             history = db_client.get_conversation_history(user_principal, realm_principal)
-            # Build conversation history text (last 5 exchanges for context)
-            recent_history = history[-5:] if len(history) > 5 else history
+            # Build conversation history text (last 3 exchanges for context)
+            recent_history = history[-3:] if len(history) > 3 else history
             for msg in recent_history:
                 history_text += f"User: {msg['question']}\nAshoka: {msg['response']}\n\n"
         except Exception as e:
             log(f"Error: Could not load conversation history for suggestions: {e}")
             history_text = ""
         
-        # Create a specialized prompt for generating suggestions
-        suggestions_prompt = f"""{PERSONA}
+        # Build realm context for suggestions
+        realm_context = build_structured_realm_context(realm_status) if realm_status else ""
+        
+        # Create context-aware suggestions based on realm state
+        suggestions_prompt = f"""{PERSONA}{realm_context}
 
 CONVERSATION_HISTORY:
 {history_text}
 
-Based on the conversation history above, generate 3 relevant follow-up questions that the user might want to ask next. The suggestions should:
-1. Be natural follow-up questions based on the conversation context
-2. Help the user explore related topics or dive deeper into the subject
-3. Be concise and actionable (under 50 characters each)
-4. Be relevant to AI governance, realms, and the Ashoka assistant's capabilities
+Based on the realm status and conversation history above, generate 3 relevant follow-up questions that would be most helpful for this user. The suggestions should:
+1. Be tailored to the current realm's state (size, activity level, extensions)
+2. Address the most relevant governance topics for this realm
+3. Be concise and actionable (under 60 characters each)
+4. Help the user understand or improve their realm's governance
 
-If there's no conversation history, provide general introductory questions about realms and AI governance.
+For example:
+- If the realm has low activity, suggest engagement strategies
+- If the realm has no organizations, suggest community structure questions
+- If the realm has extensions, suggest questions about their usage
+- If there's voting activity, suggest participation improvement questions
 
 Format your response as exactly 3 questions, one per line, with no numbering or bullet points:"""
 
@@ -435,19 +604,60 @@ Format your response as exactly 3 questions, one per line, with no numbering or 
                     if cleaned_line:
                         suggestions.append(cleaned_line)
             
-            # Ensure we have exactly 3 suggestions
+            # Ensure we have exactly 3 suggestions with smart fallbacks
             if len(suggestions) < 3:
-                # Add fallback suggestions if needed
-                fallback_suggestions = [
-                    "What is a realm?",
-                    "What is an AI governance assistant?", 
-                    "Why should I join this realm?"
-                ]
+                # Context-aware fallback suggestions based on realm status
+                fallback_suggestions = []
+                
+                if realm_status:
+                    status_data = realm_status.get('status_data', {})
+                    users_count = status_data.get('users_count', 0)
+                    organizations_count = status_data.get('organizations_count', 0)
+                    proposals_count = status_data.get('proposals_count', 0)
+                    extensions = status_data.get('extensions', [])
+                    
+                    if users_count == 0:
+                        fallback_suggestions = [
+                            "How do I invite users to this realm?",
+                            "What are the first steps to set up governance?",
+                            "How do I configure realm settings?"
+                        ]
+                    elif organizations_count == 0:
+                        fallback_suggestions = [
+                            "How do I create organizations in this realm?",
+                            "What governance structure should we adopt?",
+                            "How do we encourage community participation?"
+                        ]
+                    elif proposals_count == 0:
+                        fallback_suggestions = [
+                            "How do I create the first proposal?",
+                            "What topics should we vote on first?",
+                            "How do we increase voting participation?"
+                        ]
+                    elif len(extensions) == 0:
+                        fallback_suggestions = [
+                            "What extensions should we install?",
+                            "How do extensions improve governance?",
+                            "What features are missing in our realm?"
+                        ]
+                    else:
+                        fallback_suggestions = [
+                            "How can we improve our governance health score?",
+                            "What governance best practices should we adopt?",
+                            "How do we measure our realm's success?"
+                        ]
+                else:
+                    fallback_suggestions = [
+                        "What is a realm?",
+                        "How does decentralized governance work?",
+                        "What can an AI governance assistant do?"
+                    ]
+                
                 suggestions.extend(fallback_suggestions[len(suggestions):3])
             elif len(suggestions) > 3:
                 suggestions = suggestions[:3]
             
-            log(f"Generated dynamic suggestions: {suggestions}")
+            log(f"Generated contextual suggestions: {suggestions}")
             
             return jsonify({
                 "suggestions": suggestions
@@ -456,12 +666,12 @@ Format your response as exactly 3 questions, one per line, with no numbering or 
             raise Exception(f"Ollama API error: {response.status_code}")
             
     except Exception as e:
-        log(f"Error generating dynamic suggestions: {e}")
-        # Fallback to static suggestions on error
+        log(f"Error generating contextual suggestions: {e}")
+        # Fallback to basic suggestions on error
         suggestions = [
             "What is a realm?",
-            "What is an AI governance assistant?", 
-            "Why should I join this realm?"
+            "How does governance work here?",
+            "What can I do in this community?"
         ]
         
         return jsonify({
