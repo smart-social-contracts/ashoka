@@ -29,7 +29,9 @@ RUN chmod 700 ~/.ssh
 RUN chmod 600 ~/.ssh/authorized_keys
 RUN mkdir -p /run/sshd
 
-RUN DFX_VERSION=0.27.0 DFXVM_INIT_YES=true sh -ci "$(curl -fsSL https://internetcomputer.org/install.sh)"
+ARG DFX_VERSION=0.27.0
+RUN DFX_VERSION=${DFX_VERSION} DFXVM_INIT_YES=true sh -ci "$(curl -fsSL https://internetcomputer.org/install.sh)"
+ENV PATH="/root/.local/share/dfx/bin:$PATH"
 
 # --- Ollama installation ---
 RUN curl -fsSL https://ollama.com/install.sh | sh
@@ -57,6 +59,9 @@ COPY requirements.txt requirements.txt
 COPY requirements-dev.txt requirements-dev.txt
 COPY api.py api.py
 COPY dfx.json dfx.json
+COPY realm_status_service.py realm_status_service.py
+COPY realm_status_scheduler.py realm_status_scheduler.py
+COPY REALM_STATUS_README.md REALM_STATUS_README.md
 COPY prompts prompts
 COPY database database
 COPY test_runner.py test_runner.py

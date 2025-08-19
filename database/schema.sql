@@ -9,5 +9,15 @@ CREATE TABLE IF NOT EXISTS conversations (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS realm_status (
+    id SERIAL PRIMARY KEY,
+    realm_principal TEXT NOT NULL,
+    realm_url TEXT NOT NULL,
+    status_data JSONB NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 GRANT ALL PRIVILEGES ON TABLE conversations TO ashoka_user;
 GRANT USAGE, SELECT ON SEQUENCE conversations_id_seq TO ashoka_user;
+GRANT ALL PRIVILEGES ON TABLE realm_status TO ashoka_user;
+GRANT USAGE, SELECT ON SEQUENCE realm_status_id_seq TO ashoka_user;

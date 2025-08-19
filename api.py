@@ -15,6 +15,8 @@ import os
 import time
 import atexit
 from database.db_client import DatabaseClient
+from realm_status_service import RealmStatusService
+from realm_status_scheduler import get_scheduler, start_scheduler, stop_scheduler
 
 
 def log(message):
@@ -30,8 +32,9 @@ PERSONA = (Path(__file__).parent / "prompts" / "persona.txt").read_text()
 # Model configuration with fallback
 ASHOKA_DEFAULT_MODEL = os.getenv('ASHOKA_DEFAULT_MODEL', 'llama3.2:1b')
 
-# Initialize database client
+# Initialize database client and realm status service
 db_client = DatabaseClient()
+realm_status_service = RealmStatusService(db_client)
 
 # In-memory test status storage
 test_jobs = {}
@@ -438,6 +441,267 @@ Format your response as exactly 3 questions, one per line, with no numbering or 
             "suggestions": suggestions
         })
 
+@app.route('/api/realm-status/fetch', methods=['POST'])
+def fetch_realm_status():
+    """Fetch and store status for a specific realm using DFX"""
+    update_activity()
+    
+    data = request.json
+    realm_principal = data.get('realm_principal')
+    realm_url = data.get('realm_url')  # Optional, will be constructed if not provided
+    network = data.get('network', 'ic')  # Default to IC mainnet
+    
+    if not realm_principal:
+        return jsonify({"error": "Missing required field: realm_principal"}), 400
+    
+    try:
+        success = realm_status_service.fetch_and_store_realm_status(realm_principal, realm_url, network)
+        
+        if success:
+            return jsonify({
+                "success": True,
+                "message": f"Successfully fetched and stored status for realm {realm_principal} via DFX"
+            })
+        else:
+            return jsonify({
+                "success": False,
+                "error": f"Failed to fetch status for realm {realm_principal} via DFX"
+            }), 500
+            
+    except Exception as e:
+        log(f"Error fetching realm status: {traceback.format_exc()}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/realm-status/batch-fetch', methods=['POST'])
+def batch_fetch_realm_status():
+    """Fetch and store status for multiple realms using DFX"""
+    update_activity()
+    
+    data = request.json
+    realms = data.get('realms', [])
+    network = data.get('network', 'ic')  # Default to IC mainnet
+    
+    if not realms:
+        return jsonify({"error": "Missing required field: realms (array of {principal, url} objects)"}), 400
+    
+    try:
+        results = realm_status_service.fetch_multiple_realms_status(realms, network)
+        
+        successful_count = sum(1 for success in results.values() if success)
+        total_count = len(results)
+        
+        return jsonify({
+            "success": True,
+            "results": results,
+            "summary": {
+                "total_realms": total_count,
+                "successful_fetches": successful_count,
+                "failed_fetches": total_count - successful_count,
+                "network": network
+            }
+        })
+        
+    except Exception as e:
+        log(f"Error batch fetching realm status: {traceback.format_exc()}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/realm-status/<realm_principal>', methods=['GET'])
+def get_realm_status(realm_principal):
+    """Get the latest status for a specific realm"""
+    update_activity()
+    
+    try:
+        summary = realm_status_service.get_realm_status_summary(realm_principal)
+        
+        if summary:
+            return jsonify({
+                "success": True,
+                "data": summary
+            })
+        else:
+            return jsonify({
+                "success": False,
+                "error": f"No status data found for realm {realm_principal}"
+            }), 404
+            
+    except Exception as e:
+        log(f"Error getting realm status: {traceback.format_exc()}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/realm-status/<realm_principal>/history', methods=['GET'])
+def get_realm_status_history(realm_principal):
+    """Get status history for a specific realm"""
+    update_activity()
+    
+    limit = request.args.get('limit', 10, type=int)
+    
+    try:
+        history = db_client.get_realm_status_history(realm_principal, limit)
+        
+        return jsonify({
+            "success": True,
+            "data": history,
+            "count": len(history)
+        })
+        
+    except Exception as e:
+        log(f"Error getting realm status history: {traceback.format_exc()}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/realm-status/all', methods=['GET'])
+def get_all_realms_status():
+    """Get latest status summary for all tracked realms"""
+    update_activity()
+    
+    try:
+        summaries = realm_status_service.get_all_realms_summary()
+        
+        return jsonify({
+            "success": True,
+            "data": summaries,
+            "count": len(summaries)
+        })
+        
+    except Exception as e:
+        log(f"Error getting all realms status: {traceback.format_exc()}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/realm-status/scheduler/status', methods=['GET'])
+def get_scheduler_status():
+    """Get realm status scheduler information"""
+    update_activity()
+    
+    try:
+        scheduler = get_scheduler()
+        status = scheduler.get_status()
+        
+        return jsonify({
+            "success": True,
+            "data": status
+        })
+        
+    except Exception as e:
+        log(f"Error getting scheduler status: {traceback.format_exc()}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/realm-status/scheduler/start', methods=['POST'])
+def start_realm_scheduler():
+    """Start the realm status scheduler"""
+    update_activity()
+    
+    try:
+        scheduler = get_scheduler()
+        scheduler.start()
+        
+        return jsonify({
+            "success": True,
+            "message": "Realm status scheduler started"
+        })
+        
+    except Exception as e:
+        log(f"Error starting scheduler: {traceback.format_exc()}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/realm-status/scheduler/stop', methods=['POST'])
+def stop_realm_scheduler():
+    """Stop the realm status scheduler"""
+    update_activity()
+    
+    try:
+        scheduler = get_scheduler()
+        scheduler.stop()
+        
+        return jsonify({
+            "success": True,
+            "message": "Realm status scheduler stopped"
+        })
+        
+    except Exception as e:
+        log(f"Error stopping scheduler: {traceback.format_exc()}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/realm-status/scheduler/fetch-now', methods=['POST'])
+def trigger_immediate_fetch():
+    """Trigger an immediate status fetch for all configured realms"""
+    update_activity()
+    
+    try:
+        scheduler = get_scheduler()
+        results = scheduler.fetch_now()
+        
+        successful_count = sum(1 for success in results.values() if success)
+        total_count = len(results)
+        
+        return jsonify({
+            "success": True,
+            "results": results,
+            "summary": {
+                "total_realms": total_count,
+                "successful_fetches": successful_count,
+                "failed_fetches": total_count - successful_count
+            }
+        })
+        
+    except Exception as e:
+        log(f"Error triggering immediate fetch: {traceback.format_exc()}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/realm-status/scheduler/realms', methods=['POST'])
+def add_realm_to_scheduler():
+    """Add a realm to the scheduler configuration"""
+    update_activity()
+    
+    data = request.json
+    realm_principal = data.get('realm_principal')
+    realm_url = data.get('realm_url')
+    name = data.get('name')
+    
+    if not realm_principal or not realm_url:
+        return jsonify({"error": "Missing required fields: realm_principal and realm_url"}), 400
+    
+    try:
+        scheduler = get_scheduler()
+        success = scheduler.add_realm(realm_principal, realm_url, name)
+        
+        if success:
+            return jsonify({
+                "success": True,
+                "message": f"Added realm {realm_principal} to scheduler configuration"
+            })
+        else:
+            return jsonify({
+                "success": False,
+                "error": f"Realm {realm_principal} already exists in configuration"
+            }), 400
+            
+    except Exception as e:
+        log(f"Error adding realm to scheduler: {traceback.format_exc()}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/realm-status/scheduler/realms/<realm_principal>', methods=['DELETE'])
+def remove_realm_from_scheduler(realm_principal):
+    """Remove a realm from the scheduler configuration"""
+    update_activity()
+    
+    try:
+        scheduler = get_scheduler()
+        success = scheduler.remove_realm(realm_principal)
+        
+        if success:
+            return jsonify({
+                "success": True,
+                "message": f"Removed realm {realm_principal} from scheduler configuration"
+            })
+        else:
+            return jsonify({
+                "success": False,
+                "error": f"Realm {realm_principal} not found in configuration"
+            }), 404
+            
+    except Exception as e:
+        log(f"Error removing realm from scheduler: {traceback.format_exc()}")
+        return jsonify({"error": str(e)}), 500
+
 @app.route('/', methods=['GET'])
 def health():
     # Update activity timestamp
@@ -453,8 +717,12 @@ if __name__ == '__main__':
     # Start inactivity monitoring if enabled
     start_inactivity_monitor()
     
+    # Start realm status scheduler if enabled
+    start_scheduler()
+    
     try:
         app.run(host='0.0.0.0', port=5000)
     finally:
         # Ensure cleanup on exit
         stop_inactivity_monitor()
+        stop_scheduler()
