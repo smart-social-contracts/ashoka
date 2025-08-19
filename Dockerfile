@@ -29,6 +29,13 @@ RUN chmod 700 ~/.ssh
 RUN chmod 600 ~/.ssh/authorized_keys
 RUN mkdir -p /run/sshd
 
+# --- Git configuration ---
+RUN git config --global user.name "Docker User"
+RUN git config --global user.email "docker@container.local"
+RUN git config --global init.defaultBranch main
+# Trust the workspace directory for Git operations
+RUN git config --global --add safe.directory /app/ashoka
+
 ARG DFX_VERSION=0.27.0
 RUN DFX_VERSION=${DFX_VERSION} DFXVM_INIT_YES=true sh -ci "$(curl -fsSL https://internetcomputer.org/install.sh)"
 ENV PATH="/root/.local/share/dfx/bin:$PATH"
@@ -51,6 +58,10 @@ RUN echo 'host    all             all             0.0.0.0/0               scram-
 
 # --- App environment ---
 WORKDIR /app/ashoka
+
+# Copy .git folder for repository operations
+COPY .git .git
+
 COPY tests tests
 COPY run.sh run.sh
 COPY start.sh start.sh
