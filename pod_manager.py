@@ -15,6 +15,7 @@ import json
 import argparse
 import traceback
 import runpod
+import requests
 from pathlib import Path
 from typing import Dict, Optional, List, Any
 
@@ -489,6 +490,188 @@ class PodManager:
         except Exception as e:
             self._print(f"❌ Termination failed: {e}", force=True)
             return False
+    
+    def _get_api_url(self, pod_type: str) -> str:
+        """Get the API URL for the specified pod type"""
+        pod_url = self._get_pod_url(pod_type)
+        if not pod_url:
+            return None
+        return f"https://{pod_url}"
+    
+    def ask_api(self, pod_type: str, question: str, persona: str = None, realm_status: dict = None) -> bool:
+        """Ask a question to the Ashoka API"""
+        api_url = self._get_api_url(pod_type)
+        if not api_url:
+            self._print(f"❌ No {pod_type} pod found or not running", force=True)
+            return False
+        
+        endpoint = f"{api_url}/api/ask"
+        payload = {"question": question}
+        
+        if persona:
+            payload["persona"] = persona
+        if realm_status:
+            payload["realm_status"] = realm_status
+        
+        try:
+            self._print(f"🤖 Asking Ashoka: {question}")
+            if persona:
+                self._print(f"👤 Using persona: {persona}")
+            
+            response = requests.post(endpoint, json=payload, timeout=30)
+            response.raise_for_status()
+            
+            result = response.json()
+            print(f"\n📝 **Answer:**")
+            print(result.get('answer', 'No answer received'))
+            
+            if result.get('persona_used'):
+                print(f"\n👤 Persona used: {result['persona_used']}")
+            
+            return True
+            
+        except requests.exceptions.RequestException as e:
+            self._print(f"❌ API request failed: {e}", force=True)
+            return False
+        except Exception as e:
+            self._print(f"❌ Error: {e}", force=True)
+            return False
+    
+    def list_personas_api(self, pod_type: str) -> bool:
+        """List all available personas from the API"""
+        api_url = self._get_api_url(pod_type)
+        if not api_url:
+            self._print(f"❌ No {pod_type} pod found or not running", force=True)
+            return False
+        
+        endpoint = f"{api_url}/api/personas"
+        
+        try:
+            response = requests.get(endpoint, timeout=10)
+            response.raise_for_status()
+            
+            result = response.json()
+            personas = result.get('personas', [])
+            
+            print(f"\n👥 **Available Personas ({len(personas)}):**")
+            for persona in personas:
+                name = persona.get('name', 'Unknown')
+                word_count = persona.get('word_count', 0)
+                print(f"  • {name} ({word_count} words)")
+            
+            return True
+            
+        except requests.exceptions.RequestException as e:
+            self._print(f"❌ API request failed: {e}", force=True)
+            return False
+        except Exception as e:
+            self._print(f"❌ Error: {e}", force=True)
+            return False
+    
+    def get_persona_api(self, pod_type: str, persona_name: str) -> bool:
+        """Get details for a specific persona from the API"""
+        api_url = self._get_api_url(pod_type)
+        if not api_url:
+            self._print(f"❌ No {pod_type} pod found or not running", force=True)
+            return False
+        
+        endpoint = f"{api_url}/api/personas/{persona_name}"
+        
+        try:
+            response = requests.get(endpoint, timeout=10)
+            response.raise_for_status()
+            
+            result = response.json()
+            
+            print(f"\n👤 **Persona: {persona_name}**")
+            print(f"Word count: {result.get('word_count', 0)}")
+            print(f"Character count: {result.get('character_count', 0)}")
+            print(f"Line count: {result.get('line_count', 0)}")
+            
+            if self.verbose and result.get('content'):
+                print(f"\n📄 **Content:**")
+                print(result['content'][:500] + "..." if len(result['content']) > 500 else result['content'])
+            
+            return True
+            
+        except requests.exceptions.RequestException as e:
+            self._print(f"❌ API request failed: {e}", force=True)
+            return False
+        except Exception as e:
+            self._print(f"❌ Error: {e}", force=True)
+            return False
+    
+    def get_realm_status_api(self, pod_type: str, realm_principal: str = None) -> bool:
+        """Get realm status from the API"""
+        api_url = self._get_api_url(pod_type)
+        if not api_url:
+            self._print(f"❌ No {pod_type} pod found or not running", force=True)
+            return False
+        
+        if realm_principal:
+            endpoint = f"{api_url}/api/realm-status/{realm_principal}"
+        else:
+            endpoint = f"{api_url}/api/realm-status/all"
+        
+        try:
+            response = requests.get(endpoint, timeout=10)
+            response.raise_for_status()
+            
+            result = response.json()
+            
+            if realm_principal:
+                print(f"\n🏛️ **Realm Status: {realm_principal}**")
+                if result.get('status'):
+                    status = result['status']
+                    print(f"Last updated: {status.get('last_updated', 'Unknown')}")
+                    print(f"Data: {json.dumps(status.get('data', {}), indent=2)}")
+                else:
+                    print("No status data available")
+            else:
+                print(f"\n🏛️ **All Realms Status**")
+                realms = result.get('realms', [])
+                print(f"Total realms: {len(realms)}")
+                for realm in realms:
+                    print(f"  • {realm.get('realm_principal', 'Unknown')} - Last updated: {realm.get('last_updated', 'Unknown')}")
+            
+            return True
+            
+        except requests.exceptions.RequestException as e:
+            self._print(f"❌ API request failed: {e}", force=True)
+            return False
+        except Exception as e:
+            self._print(f"❌ Error: {e}", force=True)
+            return False
+    
+    def health_check_api(self, pod_type: str) -> bool:
+        """Check API health status"""
+        api_url = self._get_api_url(pod_type)
+        if not api_url:
+            self._print(f"❌ No {pod_type} pod found or not running", force=True)
+            return False
+        
+        try:
+            response = requests.get(api_url, timeout=10)
+            response.raise_for_status()
+            
+            result = response.json()
+            
+            print(f"\n✅ **API Health Check - {pod_type.upper()} Pod**")
+            print(f"Status: {result.get('status', 'Unknown')}")
+            print(f"Message: {result.get('message', 'No message')}")
+            print(f"Uptime: {result.get('uptime_seconds', 0)} seconds")
+            
+            if result.get('seconds_since_last_activity') is not None:
+                print(f"Last activity: {result['seconds_since_last_activity']} seconds ago")
+            
+            return True
+            
+        except requests.exceptions.RequestException as e:
+            self._print(f"❌ API request failed: {e}", force=True)
+            return False
+        except Exception as e:
+            self._print(f"❌ Error: {e}", force=True)
+            return False
 
 
 def main():
@@ -496,7 +679,7 @@ def main():
         description="RunPod Manager - Manage RunPod instances using the official RunPod SDK",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
-Examples:
+Pod Management Examples:
   %(prog)s main start     - Start the main pod
   %(prog)s branch stop    - Stop the branch pod
   %(prog)s main restart   - Restart the main pod
@@ -505,17 +688,35 @@ Examples:
   %(prog)s branch terminate - Terminate (delete) the branch pod
   %(prog)s main start --deploy-new-if-needed - Start pod, deploy new if needed
   %(prog)s branch restart --deploy-new-if-needed - Restart pod, deploy new if needed
+
+API Usage Examples:
+  %(prog)s main ask -q "What is the best governance approach?" - Ask Ashoka
+  %(prog)s main ask -q "Should we approve this proposal?" -p advisor - Ask with advisor persona
+  %(prog)s main ask -q "Analyze this situation" --realm-status-file status.json - Ask with realm data
+  %(prog)s main personas  - List all available personas
+  %(prog)s main persona -p ashoka - Get details for ashoka persona
+  %(prog)s main realm-status - Get status for all realms
+  %(prog)s main realm-status -r realm123 - Get status for specific realm
+  %(prog)s main health    - Check API health status
         """
     )
     
     parser.add_argument('pod_type', choices=['main', 'branch'], 
                        help='Pod type to manage')
-    parser.add_argument('action', choices=['start', 'stop', 'restart', 'status', 'deploy', 'terminate'],
+    parser.add_argument('action', choices=['start', 'stop', 'restart', 'status', 'deploy', 'terminate', 'ask', 'personas', 'persona', 'realm-status', 'health'],
                        help='Action to perform')
     parser.add_argument('--verbose', '-v', action='store_true',
                        help='Enable verbose output (default: concise)')
     parser.add_argument('--deploy-new-if-needed', action='store_true',
                        help='Deploy a new pod if current one cannot be started (for start/restart only)')
+    parser.add_argument('--question', '-q', type=str,
+                       help='Question to ask Ashoka (for ask action)')
+    parser.add_argument('--persona', '-p', type=str,
+                       help='Persona to use for asking questions or to get details for')
+    parser.add_argument('--realm-principal', '-r', type=str,
+                       help='Realm principal for realm status queries')
+    parser.add_argument('--realm-status-file', type=str,
+                       help='JSON file containing realm status data to include with question')
     
     if len(sys.argv) == 1:
         parser.print_help()
@@ -538,6 +739,32 @@ Examples:
             success = manager.deploy_pod(args.pod_type)
         elif args.action == 'terminate':
             success = manager.terminate_pod(args.pod_type)
+        elif args.action == 'ask':
+            if not args.question:
+                print("❌ Error: --question is required for ask action")
+                sys.exit(1)
+            
+            realm_status = None
+            if args.realm_status_file:
+                try:
+                    with open(args.realm_status_file, 'r') as f:
+                        realm_status = json.load(f)
+                except Exception as e:
+                    print(f"❌ Error reading realm status file: {e}")
+                    sys.exit(1)
+            
+            success = manager.ask_api(args.pod_type, args.question, args.persona, realm_status)
+        elif args.action == 'personas':
+            success = manager.list_personas_api(args.pod_type)
+        elif args.action == 'persona':
+            if not args.persona:
+                print("❌ Error: --persona is required for persona action")
+                sys.exit(1)
+            success = manager.get_persona_api(args.pod_type, args.persona)
+        elif args.action == 'realm-status':
+            success = manager.get_realm_status_api(args.pod_type, args.realm_principal)
+        elif args.action == 'health':
+            success = manager.health_check_api(args.pod_type)
         
         sys.exit(0 if success else 1)
         
