@@ -691,8 +691,9 @@ Pod Management Examples:
 
 API Usage Examples:
   %(prog)s main ask -q "What is the best governance approach?" - Ask Ashoka
+  %(prog)s main ask -qf question.txt - Ask Ashoka with question from file
   %(prog)s main ask -q "Should we approve this proposal?" -p advisor - Ask with advisor persona
-  %(prog)s main ask -q "Analyze this situation" --realm-status-file status.json - Ask with realm data
+  %(prog)s main ask -qf proposal.txt -p facilitator --realm-status-file status.json - Complex query
   %(prog)s main personas  - List all available personas
   %(prog)s main persona -p ashoka - Get details for ashoka persona
   %(prog)s main realm-status - Get status for all realms
@@ -711,6 +712,8 @@ API Usage Examples:
                        help='Deploy a new pod if current one cannot be started (for start/restart only)')
     parser.add_argument('--question', '-q', type=str,
                        help='Question to ask Ashoka (for ask action)')
+    parser.add_argument('--question-file', '-qf', type=str,
+                       help='File containing the question to ask Ashoka (alternative to --question)')
     parser.add_argument('--persona', '-p', type=str,
                        help='Persona to use for asking questions or to get details for')
     parser.add_argument('--realm-principal', '-r', type=str,
@@ -740,8 +743,25 @@ API Usage Examples:
         elif args.action == 'terminate':
             success = manager.terminate_pod(args.pod_type)
         elif args.action == 'ask':
-            if not args.question:
-                print("❌ Error: --question is required for ask action")
+            # Get question from either --question or --question-file
+            question = None
+            if args.question and args.question_file:
+                print("❌ Error: Cannot use both --question and --question-file. Choose one.")
+                sys.exit(1)
+            elif args.question:
+                question = args.question
+            elif args.question_file:
+                try:
+                    with open(args.question_file, 'r') as f:
+                        question = f.read().strip()
+                    if not question:
+                        print("❌ Error: Question file is empty")
+                        sys.exit(1)
+                except Exception as e:
+                    print(f"❌ Error reading question file: {e}")
+                    sys.exit(1)
+            else:
+                print("❌ Error: Either --question or --question-file is required for ask action")
                 sys.exit(1)
             
             realm_status = None
@@ -753,7 +773,7 @@ API Usage Examples:
                     print(f"❌ Error reading realm status file: {e}")
                     sys.exit(1)
             
-            success = manager.ask_api(args.pod_type, args.question, args.persona, realm_status)
+            success = manager.ask_api(args.pod_type, question, args.persona, realm_status)
         elif args.action == 'personas':
             success = manager.list_personas_api(args.pod_type)
         elif args.action == 'persona':
