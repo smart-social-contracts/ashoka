@@ -50,7 +50,6 @@ htmlcov/
 *.zip
 
 # Docker
-.dockerignore
 docker-compose.override.yml
 
 # Temporary files
