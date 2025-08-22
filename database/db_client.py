@@ -28,18 +28,18 @@ class DatabaseClient:
     
     def store_conversation(self, user_principal: str, realm_principal: str, 
                           question: str, response: str, prompt_context: str = None,
-                          metadata: Dict = None) -> int:
+                          metadata: Dict = None, persona_name: str = 'ashoka') -> int:
         try:
             with self.connection.cursor() as cursor:
                 cursor.execute("""
-                    INSERT INTO conversations (user_principal, realm_principal, question, response, prompt_context, metadata)
-                    VALUES (%s, %s, %s, %s, %s, %s)
+                    INSERT INTO conversations (user_principal, realm_principal, question, response, persona_name, prompt_context, metadata)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
                     RETURNING id
-                """, (user_principal, realm_principal, question, response, prompt_context, json.dumps(metadata) if metadata else None))
+                """, (user_principal, realm_principal, question, response, persona_name, prompt_context, json.dumps(metadata) if metadata else None))
                 
                 conversation_id = cursor.fetchone()[0]
                 self.connection.commit()
-                logger.info(f"Stored conversation with ID: {conversation_id}")
+                logger.info(f"Stored conversation with ID: {conversation_id} using persona: {persona_name}")
                 return conversation_id
         except Exception as e:
             logger.error(f"Failed to store conversation: {e}")
@@ -81,15 +81,22 @@ class DatabaseClient:
             logger.error(f"Failed to get conversations by user: {e}")
             return []
     
-    def get_conversation_history(self, user_principal: str, realm_principal: str) -> List[Dict]:
-        """Get conversation history for a specific user+realm pair"""
+    def get_conversation_history(self, user_principal: str, realm_principal: str, persona_name: str = None) -> List[Dict]:
+        """Get conversation history for a specific user+realm pair, optionally filtered by persona"""
         try:
             with self.connection.cursor(cursor_factory=RealDictCursor) as cursor:
-                cursor.execute("""
-                    SELECT question, response FROM conversations 
-                    WHERE user_principal = %s AND realm_principal = %s 
-                    ORDER BY created_at ASC
-                """, (user_principal, realm_principal))
+                if persona_name:
+                    cursor.execute("""
+                        SELECT question, response, persona_name FROM conversations 
+                        WHERE user_principal = %s AND realm_principal = %s AND persona_name = %s
+                        ORDER BY created_at ASC
+                    """, (user_principal, realm_principal, persona_name))
+                else:
+                    cursor.execute("""
+                        SELECT question, response, persona_name FROM conversations 
+                        WHERE user_principal = %s AND realm_principal = %s 
+                        ORDER BY created_at ASC
+                    """, (user_principal, realm_principal))
                 
                 return [dict(row) for row in cursor.fetchall()]
         except Exception as e:
@@ -196,6 +203,66 @@ class DatabaseClient:
         except Exception as e:
             logger.error(f"Database health check failed: {e}")
             return False
+    
+    def get_persona_usage_stats(self, realm_principal: str = None, days: int = 30) -> List[Dict]:
+        """Get statistics on persona usage over the specified time period"""
+        try:
+            with self.connection.cursor(cursor_factory=RealDictCursor) as cursor:
+                if realm_principal:
+                    cursor.execute("""
+                        SELECT 
+                            persona_name,
+                            COUNT(*) as usage_count,
+                            COUNT(DISTINCT user_principal) as unique_users,
+                            MIN(created_at) as first_used,
+                            MAX(created_at) as last_used
+                        FROM conversations 
+                        WHERE realm_principal = %s 
+                        AND created_at >= NOW() - INTERVAL '%s days'
+                        GROUP BY persona_name
+                        ORDER BY usage_count DESC
+                    """, (realm_principal, days))
+                else:
+                    cursor.execute("""
+                        SELECT 
+                            persona_name,
+                            COUNT(*) as usage_count,
+                            COUNT(DISTINCT user_principal) as unique_users,
+                            COUNT(DISTINCT realm_principal) as unique_realms,
+                            MIN(created_at) as first_used,
+                            MAX(created_at) as last_used
+                        FROM conversations 
+                        WHERE created_at >= NOW() - INTERVAL '%s days'
+                        GROUP BY persona_name
+                        ORDER BY usage_count DESC
+                    """, (days,))
+                
+                return [dict(row) for row in cursor.fetchall()]
+        except Exception as e:
+            logger.error(f"Failed to get persona usage stats: {e}")
+            return []
+
+    def get_conversations_by_persona(self, persona_name: str, limit: int = 10) -> List[Dict]:
+        """Get recent conversations for a specific persona"""
+        try:
+            with self.connection.cursor(cursor_factory=RealDictCursor) as cursor:
+                cursor.execute("""
+                    SELECT * FROM conversations 
+                    WHERE persona_name = %s 
+                    ORDER BY created_at DESC 
+                    LIMIT %s
+                """, (persona_name, limit))
+                
+                results = []
+                for row in cursor.fetchall():
+                    result = dict(row)
+                    if result['metadata']:
+                        result['metadata'] = json.loads(result['metadata'])
+                    results.append(result)
+                return results
+        except Exception as e:
+            logger.error(f"Failed to get conversations by persona: {e}")
+            return []
     
     def close(self):
         if self.connection:

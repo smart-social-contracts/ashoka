@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Ashoka API - Simple HTTP service for AI governance advice
+Ashoka API - Simple HTTP service for AI governance advice with multi-persona support
 """
 import json
 import requests
@@ -17,6 +17,7 @@ import atexit
 from database.db_client import DatabaseClient
 from realm_status_service import RealmStatusService
 from realm_status_scheduler import get_scheduler, start_scheduler, stop_scheduler
+from persona_manager import PersonaManager
 
 
 def log(message):
@@ -26,8 +27,8 @@ def log(message):
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
 
-# Load Ashoka persona once at startup
-PERSONA = (Path(__file__).parent / "prompts" / "persona.txt").read_text()
+# Initialize persona manager
+persona_manager = PersonaManager()
 
 # Model configuration with fallback
 ASHOKA_DEFAULT_MODEL = os.getenv('ASHOKA_DEFAULT_MODEL', 'llama3.2:1b')
@@ -192,8 +193,10 @@ def build_user_context(user_principal, realm_principal):
         log(f"Error building user context: {e}")
         return f"\n=== USER CONTEXT ===\nUser: {user_principal[:8]}...\nError loading user history\n\n"
 
-def build_prompt(user_principal, realm_principal, question, realm_status=None):
+def build_prompt(user_principal, realm_principal, question, realm_status=None, persona_name=None):
     """Build complete prompt with persona + structured context + history + question"""
+    # Get persona content using PersonaManager
+    actual_persona_name, persona_content = persona_manager.get_persona_or_default(persona_name)
     # Build structured realm context
     realm_context = build_structured_realm_context(realm_status)
     
@@ -207,25 +210,33 @@ def build_prompt(user_principal, realm_principal, question, realm_status=None):
         # Only include last 3 exchanges to keep context manageable
         recent_history = history[-3:] if len(history) > 3 else history
         for msg in recent_history:
-            history_text += f"User: {msg['question']}\nAshoka: {msg['response']}\n\n"
+            persona_used = msg.get('persona_name', 'Assistant')
+            history_text += f"User: {msg['question']}\n{persona_used.title()}: {msg['response']}\n\n"
     except Exception as e:
         log(f"Error: Could not load conversation history: {e}")
         history_text = ""
     
     # Complete prompt with structured context
-    prompt = f"{PERSONA}{realm_context}{user_context}"
+    prompt = f"{persona_content}{realm_context}{user_context}"
     
     if history_text:
         prompt += f"=== RECENT CONVERSATION HISTORY ===\n{history_text}"
     
-    prompt += f"=== CURRENT QUESTION ===\nUser: {question}\nAshoka:"
+    prompt += f"=== CURRENT QUESTION ===\nUser: {question}\n{actual_persona_name.title()}:"
     
     return prompt
 
-def save_to_conversation(user_principal, realm_principal, question, answer, prompt=None):
-    """Save Q&A to conversation history"""
+def save_to_conversation(user_principal, realm_principal, question, answer, prompt=None, persona_name=None):
+    """Save Q&A to conversation history with persona information"""
     try:
-        db_client.store_conversation(user_principal, realm_principal, question, answer, prompt)
+        db_client.store_conversation(
+            user_principal, 
+            realm_principal, 
+            question, 
+            answer, 
+            prompt, 
+            persona_name=persona_name or persona_manager.default_persona
+        )
     except Exception as e:
         log(f"Error: Could not save conversation to database: {e}")
 
@@ -305,17 +316,21 @@ def ask():
     log("Received ask request")
     log(request.json)
     
-    """Main endpoint for asking Ashoka questions"""
+    """Main endpoint for asking questions with persona support"""
     data = request.json
     user_principal = data.get('user_principal') or ""
     realm_principal = data.get('realm_principal') or ""
     question = data.get('question')
     realm_status = data.get('realm_status')  # Optional realm context
+    persona_name = data.get('persona')  # Optional persona name
     ollama_url = data.get('ollama_url', 'http://localhost:11434')
     
     # Validate required fields - user_principal can be empty for anonymous users
     if not question:
         return jsonify({"error": "Missing required fields: a question is required"}), 400
+    
+    # Get actual persona name used (with fallback)
+    actual_persona_name, _ = persona_manager.get_persona_or_default(persona_name)
     
     # If realm_principal is provided but no realm_status, try to fetch from database
     log(f"Fetching realm status for {realm_principal}")
@@ -344,8 +359,8 @@ def ask():
             log(f"Error retrieving realm status from database: {e}")
             realm_status = None
     
-    # Build complete prompt with realm context
-    prompt = build_prompt(user_principal, realm_principal, question, realm_status)
+    # Build complete prompt with persona and realm context
+    prompt = build_prompt(user_principal, realm_principal, question, realm_status, persona_name)
     
     # Log the complete prompt for debugging
     log("\n" + "="*80)
@@ -360,7 +375,7 @@ def ask():
     # Send to Ollama
     try:
         if stream:
-            return Response(stream_response(ollama_url, prompt, user_principal, realm_principal, question), 
+            return Response(stream_response(ollama_url, prompt, user_principal, realm_principal, question, actual_persona_name), 
                           mimetype='text/plain')
         else:
             response = requests.post(f"{ollama_url}/api/generate", json={
@@ -370,18 +385,19 @@ def ask():
             })
             answer = response.json()['response']
             
-            # Save to conversation history
-            save_to_conversation(user_principal, realm_principal, question, answer, prompt)
+            # Save to conversation history with persona info
+            save_to_conversation(user_principal, realm_principal, question, answer, prompt, actual_persona_name)
             
             return jsonify({
                 "success": True,
-                "answer": answer
+                "answer": answer,
+                "persona_used": actual_persona_name
             })
     except Exception as e:
         log(f"Error: {traceback.format_exc()}")
         return jsonify({"error": str(e)}), 500
 
-def stream_response(ollama_url, prompt, user_principal, realm_principal, question):
+def stream_response(ollama_url, prompt, user_principal, realm_principal, question, persona_name):
     """Generator function for streaming responses"""
     try:
         response = requests.post(f"{ollama_url}/api/generate", json={
@@ -400,8 +416,8 @@ def stream_response(ollama_url, prompt, user_principal, realm_principal, questio
                     yield chunk
                     
                 if data.get('done', False):
-                    # Save complete answer to conversation history
-                    save_to_conversation(user_principal, realm_principal, question, full_answer, prompt)
+                    # Save complete answer to conversation history with persona info
+                    save_to_conversation(user_principal, realm_principal, question, full_answer, prompt, persona_name)
                     break
     except Exception as e:
         yield f"Error: {str(e)}"
@@ -532,6 +548,7 @@ def get_suggestions():
     # Get parameters from query string
     user_principal = request.args.get('user_principal', '')
     realm_principal = request.args.get('realm_principal', '')
+    persona_name = request.args.get('persona', '')
     ollama_url = request.args.get('ollama_url', 'http://localhost:11434')
     
     try:
@@ -550,7 +567,8 @@ def get_suggestions():
             # Build conversation history text (last 3 exchanges for context)
             recent_history = history[-3:] if len(history) > 3 else history
             for msg in recent_history:
-                history_text += f"User: {msg['question']}\nAshoka: {msg['response']}\n\n"
+                persona_used = msg.get('persona_name', 'Assistant')
+                history_text += f"User: {msg['question']}\n{persona_used.title()}: {msg['response']}\n\n"
         except Exception as e:
             log(f"Error: Could not load conversation history for suggestions: {e}")
             history_text = ""
@@ -558,8 +576,11 @@ def get_suggestions():
         # Build realm context for suggestions
         realm_context = build_structured_realm_context(realm_status) if realm_status else ""
         
+        # Get persona content for suggestions
+        actual_persona_name, persona_content = persona_manager.get_persona_or_default(persona_name)
+        
         # Create context-aware suggestions based on realm state
-        suggestions_prompt = f"""{PERSONA}{realm_context}
+        suggestions_prompt = f"""{persona_content}{realm_context}
 
 CONVERSATION_HISTORY:
 {history_text}
@@ -660,7 +681,8 @@ Format your response as exactly 3 questions, one per line, with no numbering or 
             log(f"Generated contextual suggestions: {suggestions}")
             
             return jsonify({
-                "suggestions": suggestions
+                "suggestions": suggestions,
+                "persona_used": actual_persona_name
             })
         else:
             raise Exception(f"Ollama API error: {response.status_code}")
@@ -675,7 +697,8 @@ Format your response as exactly 3 questions, one per line, with no numbering or 
         ]
         
         return jsonify({
-            "suggestions": suggestions
+            "suggestions": suggestions,
+            "persona_used": persona_manager.default_persona
         })
 
 @app.route('/api/realm-status/fetch', methods=['POST'])
@@ -949,6 +972,135 @@ def health():
         "inactivity_timeout_seconds": INACTIVITY_TIMEOUT_SECONDS,
         "seconds_since_last_activity": int(time.time() - last_activity_time) if INACTIVITY_TIMEOUT_SECONDS > 0 else None
     })
+
+@app.route('/api/personas', methods=['GET'])
+def list_personas():
+    """List all available personas"""
+    update_activity()
+    
+    try:
+        personas = persona_manager.list_available_personas()
+        return jsonify({
+            "success": True,
+            "personas": personas,
+            "default_persona": persona_manager.default_persona
+        })
+    except Exception as e:
+        log(f"Error listing personas: {traceback.format_exc()}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/personas/<persona_name>', methods=['GET'])
+def get_persona(persona_name):
+    """Get a specific persona's content"""
+    update_activity()
+    
+    try:
+        content = persona_manager.load_persona(persona_name)
+        if content is None:
+            return jsonify({"error": f"Persona '{persona_name}' not found"}), 404
+        
+        validation = persona_manager.validate_persona(persona_name)
+        
+        return jsonify({
+            "success": True,
+            "name": persona_name,
+            "content": content,
+            "validation": validation,
+            "is_default": persona_name == persona_manager.default_persona
+        })
+    except Exception as e:
+        log(f"Error getting persona {persona_name}: {traceback.format_exc()}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/personas', methods=['POST'])
+def create_persona():
+    """Create a new persona"""
+    update_activity()
+    
+    data = request.json
+    persona_name = data.get('name')
+    content = data.get('content')
+    
+    if not persona_name or not content:
+        return jsonify({"error": "Missing required fields: name and content"}), 400
+    
+    try:
+        success = persona_manager.create_persona(persona_name, content)
+        if success:
+            return jsonify({
+                "success": True,
+                "message": f"Persona '{persona_name}' created successfully"
+            })
+        else:
+            return jsonify({
+                "success": False,
+                "error": "Failed to create persona (invalid name or content)"
+            }), 400
+    except Exception as e:
+        log(f"Error creating persona {persona_name}: {traceback.format_exc()}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/personas/<persona_name>', methods=['DELETE'])
+def delete_persona(persona_name):
+    """Delete a persona"""
+    update_activity()
+    
+    try:
+        success = persona_manager.delete_persona(persona_name)
+        if success:
+            return jsonify({
+                "success": True,
+                "message": f"Persona '{persona_name}' deleted successfully"
+            })
+        else:
+            return jsonify({
+                "success": False,
+                "error": f"Failed to delete persona '{persona_name}' (not found or is default)"
+            }), 400
+    except Exception as e:
+        log(f"Error deleting persona {persona_name}: {traceback.format_exc()}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/personas/analytics/usage', methods=['GET'])
+def get_persona_usage_analytics():
+    """Get persona usage analytics and statistics"""
+    update_activity()
+    
+    realm_principal = request.args.get('realm_principal')
+    days = request.args.get('days', 30, type=int)
+    
+    try:
+        stats = db_client.get_persona_usage_stats(realm_principal, days)
+        
+        return jsonify({
+            "success": True,
+            "data": stats,
+            "period_days": days,
+            "realm_principal": realm_principal
+        })
+    except Exception as e:
+        log(f"Error getting persona usage analytics: {traceback.format_exc()}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/personas/<persona_name>/conversations', methods=['GET'])
+def get_persona_conversations(persona_name):
+    """Get recent conversations for a specific persona"""
+    update_activity()
+    
+    limit = request.args.get('limit', 10, type=int)
+    
+    try:
+        conversations = db_client.get_conversations_by_persona(persona_name, limit)
+        
+        return jsonify({
+            "success": True,
+            "persona_name": persona_name,
+            "conversations": conversations,
+            "count": len(conversations)
+        })
+    except Exception as e:
+        log(f"Error getting conversations for persona {persona_name}: {traceback.format_exc()}")
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
     # Start inactivity monitoring if enabled
