@@ -21,9 +21,10 @@ from typing import Dict, Optional, List, Any
 
 
 class PodManager:
-    def __init__(self, verbose: bool = False):
+    def __init__(self, verbose: bool = False, max_gpu_price: float = None):
         self.script_dir = Path(__file__).parent
         self.verbose = verbose
+        self.max_gpu_price = max_gpu_price
         self.api_key = self._get_api_key()
         self.config = self._load_config()
         
@@ -46,6 +47,10 @@ class PodManager:
         # Set basic defaults
         config.setdefault('MAX_GPU_PRICE', '0.30')
         config.setdefault('TEMPLATE_ID', 'ashoka1')
+        
+        # Override MAX_GPU_PRICE if provided via command line
+        if self.max_gpu_price is not None:
+            config['MAX_GPU_PRICE'] = str(self.max_gpu_price)
         
         # Set fallback defaults for template-based deployment
         config.setdefault('CONTAINER_DISK', '20')
@@ -720,6 +725,8 @@ API Usage Examples:
                        help='Realm principal for realm status queries')
     parser.add_argument('--realm-status-file', type=str,
                        help='JSON file containing realm status data to include with question')
+    parser.add_argument('--max-gpu-price', type=float,
+                       help='Maximum GPU price per hour (overrides env file setting)')
     
     if len(sys.argv) == 1:
         parser.print_help()
@@ -728,7 +735,7 @@ API Usage Examples:
     args = parser.parse_args()
     
     try:
-        manager = PodManager(verbose=args.verbose)
+        manager = PodManager(verbose=args.verbose, max_gpu_price=args.max_gpu_price)
         
         if args.action == 'start':
             success = manager.start_pod(args.pod_type, args.deploy_new_if_needed)
