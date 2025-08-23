@@ -1,10 +1,6 @@
 name: Build and Push to Docker Hub
 
 on:
-  push:
-    branches:
-      - main
-      - '**'  # All branches
   workflow_dispatch:
 
 jobs:
