@@ -17,6 +17,34 @@ if [ ! -z "$SSH_AUTH_KEY" ]; then
     ssh-keyscan -H gitlab.com >> /root/.ssh/known_hosts 2>/dev/null
 fi
 
+# Setup SSH keys from base64 encoded environment variables
+# To generate the b64 encoding and recover them:
+# base64 -w 0 ~/.ssh/id_ed25519_docker_git | base64 -d 
+# base64 -w 0 ~/.ssh/id_ed25519_docker_git.pub | base64 -d 
+if [ ! -z "$SSH_GIT_KEY_PRIVATE_B64" ]; then
+    echo "Setting up SSH private key from base64 encoded environment variable..."
+    printf '%s' "$SSH_GIT_KEY_PRIVATE_B64" | base64 -d > ~/.ssh/id_ed25519_docker_git
+    chmod 600 ~/.ssh/id_ed25519_docker_git
+    
+    # Setup public key if provided
+    if [ ! -z "$SSH_GIT_KEY_PUBLIC_B64" ]; then
+        echo "Setting up SSH public key from base64 encoded environment variable..."
+        printf '%s' "$SSH_GIT_KEY_PUBLIC_B64" | base64 -d > ~/.ssh/id_ed25519_docker_git.pub
+        chmod 644 ~/.ssh/id_ed25519_docker_git.pub
+    fi
+    
+    # Start SSH agent and add key (if not already started)
+    if [ -z "$SSH_AGENT_PID" ]; then
+        eval $(ssh-agent -s)
+    fi
+    ssh-add ~/.ssh/id_ed25519_docker_git
+    
+    # Add GitHub to known hosts (if not already added)
+    if [ ! -f /root/.ssh/known_hosts ] || ! grep -q "github.com" /root/.ssh/known_hosts; then
+        ssh-keyscan -H github.com >> /root/.ssh/known_hosts 2>/dev/null
+    fi
+fi
+
 # Pull latest changes
 git pull
 
