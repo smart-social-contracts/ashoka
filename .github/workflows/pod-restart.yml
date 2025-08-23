@@ -1,0 +1,53 @@
+name: Restart Pod
+
+on:
+  workflow_dispatch:
+    inputs:
+      pod_type:
+        description: 'Pod type to restart'
+        required: true
+        default: 'main'
+        type: choice
+        options:
+          - main
+          - branch
+      deploy_new_if_needed:
+        description: 'Deploy new pod if needed'
+        required: false
+        default: true
+        type: boolean
+      verbose:
+        description: 'Enable verbose output'
+        required: false
+        default: true
+        type: boolean
+
+jobs:
+  restart-pod:
+    runs-on: ubuntu-latest
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Install dependencies
+        run: pip install requests runpod
+
+      - name: Restart pod
+        run: |
+          cmd="./pod_manager.py ${{ inputs.pod_type }} restart"
+          if [ "${{ inputs.deploy_new_if_needed }}" = "true" ]; then
+            cmd="$cmd --deploy-new-if-needed"
+          fi
+          if [ "${{ inputs.verbose }}" = "true" ]; then
+            cmd="$cmd --verbose"
+          fi
+          echo "Executing: $cmd"
+          $cmd

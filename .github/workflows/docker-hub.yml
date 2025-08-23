@@ -53,5 +53,3 @@ jobs:
             docker push "$tag"
           done
 
-      - name: Restart pod
-        run: ./pod_manager.py ${{ steps.tags.outputs.pod_type }} restart --deploy-new-if-needed --verbose
