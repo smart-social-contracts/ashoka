@@ -43,6 +43,20 @@ if [ ! -z "$SSH_GIT_KEY_PRIVATE_B64" ]; then
     if [ ! -f /root/.ssh/known_hosts ] || ! grep -q "github.com" /root/.ssh/known_hosts; then
         ssh-keyscan -H github.com >> /root/.ssh/known_hosts 2>/dev/null
     fi
+    
+    # Configure Git to use the SSH key
+    git config --global core.sshCommand "ssh -i ~/.ssh/id_ed25519_docker_git -o IdentitiesOnly=yes"
+    
+    # Optional: Create SSH config for specific hosts
+    cat > ~/.ssh/config << EOF
+Host github.com
+    HostName github.com
+    User git
+    IdentityFile ~/.ssh/id_ed25519_docker_git
+    IdentitiesOnly yes
+
+EOF
+    chmod 600 ~/.ssh/config
 fi
 
 # Pull latest changes
