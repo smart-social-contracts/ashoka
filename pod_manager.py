@@ -21,10 +21,12 @@ from typing import Dict, Optional, List, Any
 
 
 class PodManager:
-    def __init__(self, verbose: bool = False, max_gpu_price: float = None):
+    def __init__(self, verbose: bool = False, max_gpu_price: float = None, min_gpu_price: float = None, gpu_count: int = 1):
         self.script_dir = Path(__file__).parent
         self.verbose = verbose
         self.max_gpu_price = max_gpu_price
+        self.min_gpu_price = min_gpu_price
+        self.gpu_count = gpu_count
         self.api_key = self._get_api_key()
         self.config = self._load_config()
         
@@ -46,11 +48,21 @@ class PodManager:
         
         # Set basic defaults
         config.setdefault('MAX_GPU_PRICE', '0.30')
+        config.setdefault('MIN_GPU_PRICE', '0.05')
+        config.setdefault('GPU_COUNT', '1')
         config.setdefault('TEMPLATE_ID', 'ashoka1')
         
         # Override MAX_GPU_PRICE if provided via command line
         if self.max_gpu_price is not None:
             config['MAX_GPU_PRICE'] = str(self.max_gpu_price)
+        
+        # Override MIN_GPU_PRICE if provided via command line
+        if self.min_gpu_price is not None:
+            config['MIN_GPU_PRICE'] = str(self.min_gpu_price)
+        
+        # Override GPU_COUNT if provided via command line
+        if self.gpu_count is not None:
+            config['GPU_COUNT'] = str(self.gpu_count)
         
         # Set fallback defaults for template-based deployment
         config.setdefault('CONTAINER_DISK', '20')
@@ -189,7 +201,8 @@ class PodManager:
         # Start the pod using RunPod SDK
         self._print(f"Starting pod {pod_id}...")
         try:
-            result = runpod.resume_pod(pod_id=pod_id, gpu_count=1)
+            gpu_count = int(self.config.get('GPU_COUNT', '1'))
+            result = runpod.resume_pod(pod_id=pod_id, gpu_count=gpu_count)
             if self.verbose:
                 self._print(f"🔍 Start result: {result}")
             
@@ -352,36 +365,37 @@ class PodManager:
             
             print("=" * 60)
             
-            # Filter GPUs by price threshold using detailed pricing
+            # Filter GPUs by price range using detailed pricing
             max_price = float(self.config.get('MAX_GPU_PRICE', '0.30'))
+            min_price = float(self.config.get('MIN_GPU_PRICE', '0.05'))
             affordable_gpus = []
             
-            print(f"\n🔍 Filtering GPUs under ${max_price}/hr...")
+            print(f"\n🔍 Filtering GPUs between ${min_price}/hr and ${max_price}/hr...")
             
             for gpu in detailed_gpus:
                 community_spot = gpu.get('communitySpotPrice')
                 secure_spot = gpu.get('secureSpotPrice')
                 
                 # Get the minimum available spot price (prefer community over secure)
-                min_price = None
+                gpu_min_price = None
                 if community_spot is not None:
-                    min_price = community_spot
+                    gpu_min_price = community_spot
                 elif secure_spot is not None:
-                    min_price = secure_spot
+                    gpu_min_price = secure_spot
                 
-                if min_price is not None and min_price <= max_price:
+                if gpu_min_price is not None and min_price <= gpu_min_price <= max_price:
                     affordable_gpus.append({
                         'id': gpu['id'],
                         'name': gpu.get('displayName', gpu['id']),
-                        'price': min_price,
+                        'price': gpu_min_price,
                         'community_spot': community_spot,
                         'secure_spot': secure_spot
                     })
                     if self.verbose:
-                        self._print(f"✅ {gpu.get('displayName', gpu['id'])} - ${min_price:.3f}/hr (affordable)")
+                        self._print(f"✅ {gpu.get('displayName', gpu['id'])} - ${gpu_min_price:.3f}/hr (in range)")
             
             if not affordable_gpus:
-                self._print(f"❌ No GPUs found under ${max_price}/hr", force=True)
+                self._print(f"❌ No GPUs found between ${min_price}/hr and ${max_price}/hr", force=True)
                 return False
             
             # Sort by price (cheapest first) and try each GPU until one succeeds
@@ -404,13 +418,14 @@ class PodManager:
                     # TODO: set INACTIVITY_TIMEOUT_SECONDS as environment variable for branch pod only (main should never shutdown...)
 
                     # Use the RunPod SDK to create the pod with proper parameters
+                    gpu_count = int(self.config.get('GPU_COUNT', '1'))
                     result = runpod.create_pod(
                         name=pod_name,
                         template_id="1fnzgryfq6",
                         image_name=image_name,
                         gpu_type_id=selected_gpu['id'],
                         # cloud_type="COMMUNITY",  # Use community cloud for better pricing
-                        gpu_count=1,
+                        gpu_count=gpu_count,
                         network_volume_id="74qwklf7z9",
                         volume_mount_path="/workspace",  # Mount volume at /workspace
                         container_disk_in_gb=container_disk,  # Container disk
@@ -690,9 +705,11 @@ Pod Management Examples:
   %(prog)s main restart   - Restart the main pod
   %(prog)s branch status  - Get branch pod status
   %(prog)s main deploy    - Deploy new main pod with cheapest GPU
+  %(prog)s main deploy --gpu-count 2 - Deploy pod with 2 GPUs
+  %(prog)s main deploy --min-gpu-price 0.10 --max-gpu-price 0.25 - Deploy with price range
   %(prog)s branch terminate - Terminate (delete) the branch pod
   %(prog)s main start --deploy-new-if-needed - Start pod, deploy new if needed
-  %(prog)s branch restart --deploy-new-if-needed - Restart pod, deploy new if needed
+  %(prog)s branch restart --deploy-new-if-needed --gpu-count 4 - Restart with 4 GPUs
 
 API Usage Examples:
   %(prog)s main ask -q "What is the best governance approach?" - Ask Ashoka
@@ -727,6 +744,10 @@ API Usage Examples:
                        help='JSON file containing realm status data to include with question')
     parser.add_argument('--max-gpu-price', type=float,
                        help='Maximum GPU price per hour (overrides env file setting)')
+    parser.add_argument('--min-gpu-price', type=float,
+                       help='Minimum GPU price per hour (overrides env file setting)')
+    parser.add_argument('--gpu-count', type=int,
+                       help='Number of GPUs to allocate (default: 1, overrides env file setting)')
     
     if len(sys.argv) == 1:
         parser.print_help()
@@ -735,7 +756,7 @@ API Usage Examples:
     args = parser.parse_args()
     
     try:
-        manager = PodManager(verbose=args.verbose, max_gpu_price=args.max_gpu_price)
+        manager = PodManager(verbose=args.verbose, max_gpu_price=args.max_gpu_price, min_gpu_price=args.min_gpu_price, gpu_count=args.gpu_count)
         
         if args.action == 'start':
             success = manager.start_pod(args.pod_type, args.deploy_new_if_needed)
