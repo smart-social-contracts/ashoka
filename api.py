@@ -25,7 +25,12 @@ def log(message):
     print(message, flush=True)
 
 app = Flask(__name__)
-CORS(app)  # Enable CORS for all routes
+# Enable CORS with explicit configuration to allow cross-origin requests from any origin
+CORS(app, 
+     resources={r"/*": {"origins": "*"}},
+     allow_headers=["Content-Type", "Authorization"],
+     methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+     supports_credentials=False)
 
 # Initialize persona manager
 persona_manager = PersonaManager()
