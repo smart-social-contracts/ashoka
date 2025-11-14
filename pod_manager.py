@@ -67,9 +67,14 @@ class PodManager:
         # Set fallback defaults for template-based deployment
         config.setdefault('CONTAINER_DISK', '20')
         config.setdefault('IMAGE_NAME_BASE', 'docker.io/smartsocialcontracts/ashoka')
-        config.setdefault('VOLUME_ID_MAIN', '74qwk1f72z9')  # ashoka1_main_volume
-        config.setdefault('VOLUME_ID_BRANCH', 'ipy89pj504')  # ashoka1_branch_volume
         config.setdefault('INACTIVITY_TIMEOUT_SECONDS', '3600')
+        
+        # Validate mandatory configuration
+        if 'NETWORK_VOLUME_ID' not in config:
+            raise ValueError(
+                "NETWORK_VOLUME_ID is required but not found in env file. "
+                "Please add NETWORK_VOLUME_ID=<your_volume_id> to the env file."
+            )
         
         return config
     
@@ -426,7 +431,7 @@ class PodManager:
                         gpu_type_id=selected_gpu['id'],
                         # cloud_type="COMMUNITY",  # Use community cloud for better pricing
                         gpu_count=gpu_count,
-                        network_volume_id="74qwklf7z9",
+                        network_volume_id=self.config['NETWORK_VOLUME_ID'],
                         volume_mount_path="/workspace",  # Mount volume at /workspace
                         container_disk_in_gb=container_disk,  # Container disk
                         support_public_ip=True,
