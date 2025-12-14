@@ -28,7 +28,7 @@ def get_api_key():
 
 
 def get_templates(api_key: str):
-    """Get all pod templates for the user"""
+    """Get all pod templates for the user (filters out public RunPod templates)"""
     query = """
     query {
         myself {
@@ -48,6 +48,7 @@ def get_templates(api_key: str):
                 startJupyter
                 startSsh
                 isServerless
+                isPublic
                 readme
             }
         }
@@ -64,7 +65,9 @@ def get_templates(api_key: str):
     if 'errors' in data:
         raise Exception(f"GraphQL errors: {data['errors']}")
     
-    return data.get('data', {}).get('myself', {}).get('podTemplates', [])
+    templates = data.get('data', {}).get('myself', {}).get('podTemplates', [])
+    # Filter out public RunPod templates, keep only user's own templates
+    return [t for t in templates if not t.get('isPublic', False)]
 
 
 def sanitize_env_vars(env_list):
