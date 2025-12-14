@@ -14,6 +14,11 @@ RUN apt-get install -y --no-install-recommends \
     lsb-release
 RUN apt-get install -y --no-install-recommends postgresql postgresql-contrib
 
+# --- Cloudflared installation ---
+RUN curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb -o /tmp/cloudflared.deb && \
+    dpkg -i /tmp/cloudflared.deb && \
+    rm /tmp/cloudflared.deb
+
 RUN apt-get clean
 
 # --- Create persistent volumes ---
@@ -55,6 +60,11 @@ USER root
 # --- Configure PostgreSQL for external connections ---
 RUN sed -i "s/#listen_addresses = 'localhost'/listen_addresses = '*'/" /etc/postgresql/14/main/postgresql.conf
 RUN echo 'host    all             all             0.0.0.0/0               scram-sha-256' >> /etc/postgresql/14/main/pg_hba.conf
+
+# --- Cloudflared setup ---
+# Config is baked in; credentials injected at runtime via CLOUDFLARED_CREDS_B64
+RUN mkdir -p /root/.cloudflared
+COPY cloudflared/config.yml /root/.cloudflared/config.yml
 
 # --- App environment ---
 WORKDIR /app/ashoka

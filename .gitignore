@@ -60,3 +60,7 @@ temp/
 
 # Runpod workspace persistence volume
 workspace
+
+# Cloudflare Tunnel credentials (NEVER commit these)
+cloudflared/*.json
+cloudflared/cert.pem

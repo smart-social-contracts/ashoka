@@ -2,6 +2,22 @@
 
 ln -sf /usr/bin/python3 /usr/bin/python
 
+# --- Cloudflare Tunnel ---
+# Decode credentials from base64 environment variable
+# Generate with: base64 -w 0 <tunnel-uuid>.json && echo
+if [ ! -z "$CLOUDFLARED_CREDS_B64" ]; then
+    echo "Setting up Cloudflare Tunnel credentials..."
+    printf '%s' "$CLOUDFLARED_CREDS_B64" | base64 -d > /root/.cloudflared/credentials.json
+    chmod 600 /root/.cloudflared/credentials.json
+    
+    echo "Starting Cloudflare Tunnel..."
+    cloudflared tunnel --config /root/.cloudflared/config.yml run realms-runpod > /var/log/cloudflared.log 2>&1 &
+    CLOUDFLARED_PID=$!
+    echo "Cloudflare Tunnel started (PID: $CLOUDFLARED_PID)"
+else
+    echo "WARNING: CLOUDFLARED_CREDS_B64 not set. Skipping tunnel setup."
+fi
+
 # Setup SSH key from environment variable
 if [ ! -z "$SSH_AUTH_KEY" ]; then
     echo "Setting up SSH key from environment variable..."
