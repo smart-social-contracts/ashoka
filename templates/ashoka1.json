@@ -1,0 +1,26 @@
+{
+  "id": "1fnzgryfq6",
+  "name": "ashoka1",
+  "imageName": "docker.io/smartsocialcontracts/ashoka:latest",
+  "dockerArgs": "",
+  "containerDiskInGb": 100,
+  "volumeInGb": 300,
+  "volumeMountPath": "/workspace",
+  "ports": "11434/http,5000/http,8000/http,2222/tcp,5432/tcp,2222/udp,5432/udp",
+  "env": [
+    {
+      "key": "ASHOKA_DEFAULT_MODEL",
+      "value": "gpt-oss:20b"
+    },
+    {
+      "key": "CLOUDFLARED_CREDS_B64",
+      "value": "<REDACTED>"
+    }
+  ],
+  "startJupyter": true,
+  "startSsh": true,
+  "isServerless": false,
+  "readme": null,
+  "_backup_date": "2025-12-14T07:01:49.236339Z",
+  "_note": "Secret values have been redacted. Set them manually when recreating."
+}

@@ -518,6 +518,12 @@ class PodManager:
     
     def _get_api_url(self, pod_type: str) -> str:
         """Get the API URL for the specified pod type"""
+        # Check for configured API URL (e.g., Cloudflare tunnel)
+        configured_url = self.config.get('API_URL')
+        if configured_url:
+            return configured_url.rstrip('/')
+        
+        # Fall back to dynamic pod discovery
         pod_url = self._get_pod_url(pod_type)
         if not pod_url:
             return None
