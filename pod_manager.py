@@ -19,12 +19,6 @@ import requests
 from pathlib import Path
 from typing import Dict, Optional, List, Any
 
-# DNS Configuration for Infomaniak
-INFOMANIAK_API_BASE = "https://api.infomaniak.com"
-DNS_ZONE_NAME = "realmsgos.ch"
-DNS_SUBDOMAIN = "ashoka"
-DNS_DEFAULT_TTL = 300  # 5 minutes
-
 
 class PodManager:
     def __init__(self, verbose: bool = False, max_gpu_price: float = None, min_gpu_price: float = None, gpu_count: int = 1):
@@ -463,11 +457,6 @@ class PodManager:
                         pod_url = f"https://{pod_id}-5000.proxy.runpod.net"
                         self._print(f"Pod URL: {pod_url}")
                         
-                        # Update DNS to point to new pod (for main pod only)
-                        if pod_type == "main":
-                            proxy_host = f"{pod_id}-5000.proxy.runpod.net"
-                            self.update_dns(pod_type, proxy_host)
-                        
                         if not self.verbose:
                             print(pod_id)
                         
@@ -709,136 +698,6 @@ class PodManager:
             self._print(f"❌ Error: {e}", force=True)
             return False
     
-    def _get_infomaniak_token(self) -> Optional[str]:
-        """Get Infomaniak API token from environment or config file"""
-        # First check environment variable
-        token = os.environ.get('INFOMANIAK_API_TOKEN')
-        if token:
-            return token
-        # Fall back to config file
-        return self.config.get('INFOMANIAK_API_TOKEN')
-    
-    def _infomaniak_api_request(self, method: str, endpoint: str, token: str, data: dict = None) -> Optional[dict]:
-        """Make authenticated request to Infomaniak API"""
-        headers = {
-            "Authorization": f"Bearer {token}",
-            "Content-Type": "application/json",
-        }
-        
-        url = f"{INFOMANIAK_API_BASE}{endpoint}"
-        
-        try:
-            if method == "GET":
-                response = requests.get(url, headers=headers, timeout=30)
-            elif method == "POST":
-                response = requests.post(url, headers=headers, json=data, timeout=30)
-            elif method == "PUT":
-                response = requests.put(url, headers=headers, json=data, timeout=30)
-            elif method == "DELETE":
-                response = requests.delete(url, headers=headers, timeout=30)
-            else:
-                self._print(f"Unknown HTTP method: {method}", force=True)
-                return None
-            
-            result = response.json()
-            
-            if result.get("result") == "error":
-                error = result.get("error", {})
-                self._print(f"Infomaniak API Error: {error.get('code', 'unknown')} - {error.get('description', 'No description')}", force=True)
-                return None
-            
-            return result
-            
-        except Exception as e:
-            self._print(f"Infomaniak API request failed: {e}", force=True)
-            return None
-    
-    def _find_dns_record(self, token: str, subdomain: str, record_type: str = "CNAME") -> Optional[dict]:
-        """Find a specific DNS record by subdomain and type"""
-        result = self._infomaniak_api_request("GET", f"/2/zones/{DNS_ZONE_NAME}/records", token)
-        if not result:
-            return None
-        
-        records = result.get("data", [])
-        for record in records:
-            if record.get("source") == subdomain and record.get("type") == record_type:
-                return record
-        return None
-    
-    def update_dns(self, pod_type: str, target: str = None) -> bool:
-        """Update DNS CNAME record to point to RunPod proxy
-        
-        Args:
-            pod_type: Pod type (main/branch)
-            target: Target hostname (if None, auto-detect from current pod)
-        """
-        token = self._get_infomaniak_token()
-        if not token:
-            self._print("⚠️ INFOMANIAK_API_TOKEN not set - skipping DNS update", force=True)
-            self._print("  To enable DNS updates, set: export INFOMANIAK_API_TOKEN='your_token'", force=True)
-            return False
-        
-        # Auto-detect target from current pod if not provided
-        if not target:
-            pod_id, pod_url = self._find_pod_by_type(pod_type)
-            if not pod_url:
-                self._print(f"❌ No {pod_type} pod found for DNS update", force=True)
-                return False
-            target = pod_url
-        
-        # Ensure target ends with a dot for proper CNAME format
-        if not target.endswith("."):
-            target = target + "."
-        
-        self._print(f"🌐 Updating DNS: {DNS_SUBDOMAIN}.{DNS_ZONE_NAME} -> {target}")
-        
-        # Check for existing record
-        existing = self._find_dns_record(token, DNS_SUBDOMAIN, "CNAME")
-        
-        if existing:
-            # Update existing record
-            record_id = existing["id"]
-            self._print(f"Updating existing CNAME record (ID: {record_id})")
-            data = {"target": target, "ttl": DNS_DEFAULT_TTL}
-            result = self._infomaniak_api_request("PUT", f"/2/zones/{DNS_ZONE_NAME}/records/{record_id}", token, data)
-        else:
-            # Create new record
-            self._print("Creating new CNAME record")
-            data = {
-                "source": DNS_SUBDOMAIN,
-                "target": target,
-                "type": "CNAME",
-                "ttl": DNS_DEFAULT_TTL,
-            }
-            result = self._infomaniak_api_request("POST", f"/2/zones/{DNS_ZONE_NAME}/records", token, data)
-        
-        if result:
-            self._print(f"✅ DNS updated: {DNS_SUBDOMAIN}.{DNS_ZONE_NAME} -> {target}", force=True)
-            self._print(f"   TTL: {DNS_DEFAULT_TTL} seconds. Propagation may take a few minutes.")
-            return True
-        else:
-            self._print("❌ DNS update failed", force=True)
-            return False
-    
-    def check_dns(self) -> bool:
-        """Check current DNS CNAME record"""
-        token = self._get_infomaniak_token()
-        if not token:
-            self._print("❌ INFOMANIAK_API_TOKEN not set", force=True)
-            return False
-        
-        record = self._find_dns_record(token, DNS_SUBDOMAIN, "CNAME")
-        if record:
-            print(f"✅ DNS CNAME record found:")
-            print(f"   {DNS_SUBDOMAIN}.{DNS_ZONE_NAME} -> {record.get('target')}")
-            print(f"   TTL: {record.get('ttl')} seconds")
-            print(f"   ID: {record.get('id')}")
-            return True
-        else:
-            print(f"❌ No CNAME record found for {DNS_SUBDOMAIN}.{DNS_ZONE_NAME}")
-            return False
-
-
 def main():
     parser = argparse.ArgumentParser(
         description="RunPod Manager - Manage RunPod instances using the official RunPod SDK",
@@ -852,8 +711,6 @@ Pod Management Examples:
   %(prog)s main deploy    - Deploy new main pod with cheapest GPU
   %(prog)s main deploy --gpu-count 2 - Deploy pod with 2 GPUs
   %(prog)s main deploy --min-gpu-price 0.10 --max-gpu-price 0.25 - Deploy with price range
-  %(prog)s main dns-update - Update DNS to point to current main pod
-  %(prog)s main dns-check  - Check current DNS CNAME record
   %(prog)s branch terminate - Terminate (delete) the branch pod
   %(prog)s main start --deploy-new-if-needed - Start pod, deploy new if needed
   %(prog)s branch restart --deploy-new-if-needed --gpu-count 4 - Restart with 4 GPUs
@@ -873,7 +730,7 @@ API Usage Examples:
     
     parser.add_argument('pod_type', choices=['main', 'branch'], 
                        help='Pod type to manage')
-    parser.add_argument('action', choices=['start', 'stop', 'restart', 'status', 'deploy', 'terminate', 'ask', 'personas', 'persona', 'realm-status', 'health', 'dns-update', 'dns-check'],
+    parser.add_argument('action', choices=['start', 'stop', 'restart', 'status', 'deploy', 'terminate', 'ask', 'personas', 'persona', 'realm-status', 'health'],
                        help='Action to perform')
     parser.add_argument('--verbose', '-v', action='store_true',
                        help='Enable verbose output (default: concise)')
@@ -960,10 +817,6 @@ API Usage Examples:
             success = manager.get_realm_status_api(args.pod_type, args.realm_principal)
         elif args.action == 'health':
             success = manager.health_check_api(args.pod_type)
-        elif args.action == 'dns-update':
-            success = manager.update_dns(args.pod_type)
-        elif args.action == 'dns-check':
-            success = manager.check_dns()
         
         sys.exit(0 if success else 1)
         
