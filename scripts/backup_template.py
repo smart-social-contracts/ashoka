@@ -75,7 +75,7 @@ def sanitize_env_vars(env_list):
     if not env_list:
         return []
     
-    secret_keywords = ['key', 'secret', 'token', 'password', 'api', 'auth', 'credential', 'creds', 'private']
+    secret_keywords = ['key', 'secret', 'token', 'password', 'pem', 'api', 'auth', 'credential', 'creds', 'private']
     sanitized = []
     
     for env in env_list:

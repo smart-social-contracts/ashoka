@@ -15,6 +15,10 @@
     {
       "key": "CLOUDFLARED_CREDS_B64",
       "value": "<REDACTED>"
+    },
+    {
+      "key": "CLOUDFLARED_PEM_B64",
+      "value": "<REDACTED>"
     }
   ],
   "startJupyter": true,
@@ -22,6 +26,6 @@
   "isServerless": false,
   "isPublic": false,
   "readme": null,
-  "_backup_date": "2025-12-14T09:04:28.749803Z",
+  "_backup_date": "2025-12-14T14:03:09.933473Z",
   "_note": "Secret values have been redacted. Set them manually when recreating."
 }
