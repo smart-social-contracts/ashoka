@@ -4,5 +4,5 @@ MAX_GPU_PRICE=0.30
 MIN_GPU_PRICE=0.05
 GPU_COUNT=1
 
-# Infomaniak DNS API
-INFOMANIAK_API_TOKEN=V8Y9acnFHYyhIPneA_qFxpy2wEzs08OeoJucN-CPZGR3uHKOqRMbAR_ZIzRwwu3ACI9NHSRjqGg2uedT
+# Use Cloudflare tunnel DNS
+API_URL=https://ashoka-api.realmsgos.dev
