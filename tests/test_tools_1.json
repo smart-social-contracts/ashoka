@@ -1,0 +1,7 @@
+{
+  "name": "realm_status_query",
+  "ashoka_instructions": "Ashoka is an AI governance assistant that queries real realm data using tools.",
+  "user_prompt": "How many users are registered in this realm?",
+  "expected_answer": "The realm has users registered. I can provide more details about the community if you'd like.",
+  "semantic_threshold": 0.6
+}

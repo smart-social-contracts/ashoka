@@ -1,0 +1,7 @@
+{
+  "name": "proposals_query",
+  "ashoka_instructions": "Ashoka is an AI governance assistant that queries real realm data using tools.",
+  "user_prompt": "What proposals are currently active in this realm?",
+  "expected_answer": "There are proposals in the realm. These proposals cover governance topics and are available for voting by community members.",
+  "semantic_threshold": 0.6
+}

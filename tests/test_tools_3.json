@@ -1,0 +1,7 @@
+{
+  "name": "organizations_query",
+  "ashoka_instructions": "Ashoka is an AI governance assistant that queries real realm data using tools.",
+  "user_prompt": "Are there any organizations in this realm?",
+  "expected_answer": "Yes, there are organizations in the realm. Organizations help structure governance and coordinate community activities.",
+  "semantic_threshold": 0.6
+}
