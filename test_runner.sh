@@ -5,22 +5,28 @@ set -x
 
 source /workspace/venv/bin/activate
 
-# Deploy a local realm with demo data for testing
-echo "🏛️ Deploying local realm for testing..."
-cd /workspace/realms
-dfx start --background --clean || true
-sleep 5
+# Run tests from the app directory
+cd /app/ashoka
 
-# Create and deploy realm with demo data
-realms realm create --deploy --name "test_realm"
-
-# Get the realm folder path and export it for the test runner
-REALM_FOLDER=$(realms realm current --path 2>/dev/null || echo ".realms/test_realm")
-export REALM_FOLDER
-export REALM_NETWORK="local"
-
-echo "✅ Realm deployed at: $REALM_FOLDER"
-
-# Run the tests
-cd /workspace
-python test_runner.py --use-tools
+# Check if realms CLI is available for tool-based testing
+if command -v realms &> /dev/null; then
+    echo "🏛️ Realms CLI found, deploying local realm for testing..."
+    
+    # Start dfx if not running
+    dfx start --background --clean || true
+    sleep 5
+    
+    # Create and deploy realm with demo data
+    realms realm create --deploy --name "test_realm" || true
+    
+    # Get the realm folder path
+    REALM_FOLDER=$(realms realm current --path 2>/dev/null || echo ".realms/test_realm")
+    export REALM_FOLDER
+    export REALM_NETWORK="local"
+    
+    echo "✅ Realm deployed at: $REALM_FOLDER"
+    python test_runner.py --use-tools
+else
+    echo "⚠️ Realms CLI not found, running tests without tool calling"
+    python test_runner.py
+fi
