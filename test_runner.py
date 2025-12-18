@@ -170,7 +170,19 @@ def semantic_similarity(text1, text2):
 def run_tests(tests_dir="tests", use_tools=False, realm_folder=None, network="local", fetch_from_github=True):
     """Run all tests and return results"""
     print("Loading test cases...")
-    test_cases = load_test_cases(tests_dir, fetch_from_github=fetch_from_github)
+    all_test_cases = load_test_cases(tests_dir, fetch_from_github=fetch_from_github)
+    
+    # Filter tests based on mode
+    # Tests with "using tools" in instructions require tool calling
+    if use_tools:
+        test_cases = all_test_cases
+    else:
+        # Skip tool-dependent tests when not using tools
+        test_cases = [t for t in all_test_cases 
+                      if "using tools" not in t.get('ashoka_instructions', '').lower()]
+        skipped = len(all_test_cases) - len(test_cases)
+        if skipped > 0:
+            print(f"⏭️  Skipping {skipped} tool-dependent tests (run with --use-tools to include)")
     
     results = []
     total_tests = len(test_cases)
