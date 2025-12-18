@@ -17,7 +17,7 @@ if command -v realms &> /dev/null; then
     sleep 5
     
     # Create and deploy realm with demo data
-    realms realm create --deploy --name "test_realm" || true
+    realms realm create --deploy --realm-name "test_realm" || true
     
     # Get the realm folder path
     REALM_FOLDER=$(realms realm current --path 2>/dev/null || echo ".realms/test_realm")

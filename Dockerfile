@@ -41,7 +41,7 @@ RUN git config --global init.defaultBranch main
 # Trust the workspace directory for Git operations
 RUN git config --global --add safe.directory /app/ashoka
 
-ARG DFX_VERSION=0.27.0
+ARG DFX_VERSION=0.29.0
 RUN DFX_VERSION=${DFX_VERSION} DFXVM_INIT_YES=true sh -ci "$(curl -fsSL https://internetcomputer.org/install.sh)"
 ENV PATH="/root/.local/share/dfx/bin:$PATH"
 
