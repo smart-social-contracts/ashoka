@@ -5,6 +5,8 @@ CI Test Runner - Semantic validation of Ashoka's answers
 Supports two modes:
 - Legacy mode: Uses /api/ask with mock realm_status JSON
 - Tool mode (--use-tools): Uses /api/ask-with-tools with real realm data via tool calling
+
+Test cases are fetched dynamically from GitHub to allow updates without rebuilding Docker.
 """
 import json
 import requests
@@ -22,6 +24,13 @@ from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
 
+# GitHub repo configuration for dynamic test fetching
+GITHUB_REPO = "smart-social-contracts/ashoka"
+GITHUB_BRANCH = "main"
+GITHUB_TESTS_PATH = "tests"
+GITHUB_API_URL = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{GITHUB_TESTS_PATH}?ref={GITHUB_BRANCH}"
+GITHUB_RAW_URL = f"https://raw.githubusercontent.com/{GITHUB_REPO}/{GITHUB_BRANCH}/{GITHUB_TESTS_PATH}"
+
 # Load semantic similarity model
 print("Loading semantic similarity model...")
 try:
@@ -31,8 +40,48 @@ except Exception as e:
     print(f"Error loading model: {e}")
     exit(1)
 
-def load_test_cases(tests_dir="tests"):
-    """Load test cases from individual JSON files in the tests directory"""
+
+def fetch_tests_from_github():
+    """Fetch test cases dynamically from GitHub repository"""
+    test_cases = []
+    
+    print(f"📥 Fetching tests from GitHub: {GITHUB_REPO}/{GITHUB_TESTS_PATH}")
+    
+    try:
+        # Get list of files in tests directory
+        response = requests.get(GITHUB_API_URL, timeout=30)
+        response.raise_for_status()
+        files = response.json()
+        
+        # Filter for JSON files
+        json_files = [f for f in files if f['name'].endswith('.json')]
+        print(f"   Found {len(json_files)} test files")
+        
+        # Fetch each test file
+        for file_info in sorted(json_files, key=lambda x: x['name']):
+            file_name = file_info['name']
+            raw_url = f"{GITHUB_RAW_URL}/{file_name}"
+            
+            try:
+                file_response = requests.get(raw_url, timeout=30)
+                file_response.raise_for_status()
+                test_case = file_response.json()
+                test_cases.append(test_case)
+                print(f"   ✓ Loaded: {file_name}")
+            except Exception as e:
+                print(f"   ✗ Failed to load {file_name}: {e}")
+        
+        print(f"✅ Loaded {len(test_cases)} tests from GitHub")
+        return test_cases
+        
+    except Exception as e:
+        print(f"⚠️ Failed to fetch from GitHub: {e}")
+        print("   Falling back to local tests...")
+        return None
+
+
+def load_test_cases_local(tests_dir="tests"):
+    """Load test cases from local JSON files (fallback)"""
     test_cases = []
     json_files = glob.glob(os.path.join(tests_dir, "*.json"))
     
@@ -42,6 +91,18 @@ def load_test_cases(tests_dir="tests"):
             test_cases.append(test_case)
     
     return test_cases
+
+
+def load_test_cases(tests_dir="tests", fetch_from_github=True):
+    """Load test cases - try GitHub first, fall back to local"""
+    if fetch_from_github:
+        test_cases = fetch_tests_from_github()
+        if test_cases:
+            return test_cases
+    
+    # Fallback to local files
+    print("📁 Loading tests from local directory...")
+    return load_test_cases_local(tests_dir)
 
 def ask_ashoka(question, realm_status=None, api_url="http://localhost:5000/api/ask"):
     """Ask Ashoka a question via API with optional realm context (legacy mode)"""
@@ -106,10 +167,10 @@ def semantic_similarity(text1, text2):
     similarity = cosine_similarity([embeddings[0]], [embeddings[1]])[0][0]
     return float(similarity)
 
-def run_tests(tests_dir="tests", use_tools=False, realm_folder=None, network="local"):
+def run_tests(tests_dir="tests", use_tools=False, realm_folder=None, network="local", fetch_from_github=True):
     """Run all tests and return results"""
     print("Loading test cases...")
-    test_cases = load_test_cases(tests_dir)
+    test_cases = load_test_cases(tests_dir, fetch_from_github=fetch_from_github)
     
     results = []
     total_tests = len(test_cases)
@@ -201,6 +262,8 @@ def parse_args():
                         help='Network to use (default: from REALM_NETWORK env or local)')
     parser.add_argument('--tests-dir', type=str, default='tests',
                         help='Directory containing test JSON files')
+    parser.add_argument('--local-tests', action='store_true',
+                        help='Use local test files instead of fetching from GitHub')
     return parser.parse_args()
 
 
@@ -215,7 +278,8 @@ if __name__ == "__main__":
         tests_dir=args.tests_dir,
         use_tools=args.use_tools,
         realm_folder=args.realm_folder,
-        network=args.network
+        network=args.network,
+        fetch_from_github=not args.local_tests
     )
     
     # Print summary

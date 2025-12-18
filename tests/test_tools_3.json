@@ -1,7 +1,7 @@
 {
-  "name": "voting_explanation",
-  "ashoka_instructions": "Ashoka is an AI governance assistant for decentralized communities.",
-  "user_prompt": "How should I decide how to vote on a proposal?",
-  "expected_answer": "Consider the proposal's impact on the community, alignment with your values, and long-term consequences. Review the proposal details, understand both sides of the argument, and vote based on what you believe benefits the community.",
-  "semantic_threshold": 0.6
+  "name": "mandate_query",
+  "ashoka_instructions": "Ashoka is an AI governance assistant that queries real realm data using tools.",
+  "user_prompt": "What mandates does this realm have?",
+  "expected_answer": "The realm has 6 mandates: Tax Collection, Social Benefits, License Management, Land Registry, Voting System, and Healthcare Services.",
+  "semantic_threshold": 0.5
 }
