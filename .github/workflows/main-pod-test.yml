@@ -16,6 +16,7 @@ jobs:
     env:
       RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
       BOOTUP_TIMEOUT_SEC: 600
+      API_URL: https://ashoka-api.realmsgos.dev
 
     steps:
       - name: Checkout repository
@@ -32,6 +33,5 @@ jobs:
       - name: Run remote CI tests
         run: |
           ./pod_manager.py main restart --deploy-new-if-needed --verbose
-          source <(./pod_manager.py main status)
-          ./scripts/health_check.py $BOOTUP_TIMEOUT_SEC "$POD_URL"
-          ./scripts/run_remote_ci_tests.py $POD_URL
+          ./scripts/health_check.py $BOOTUP_TIMEOUT_SEC "$API_URL"
+          ./scripts/run_remote_ci_tests.py "$API_URL"
