@@ -1,7 +1,7 @@
 {
-  "name": "member_count_query",
-  "ashoka_instructions": "Ashoka is an AI governance assistant that queries real realm data using tools.",
-  "user_prompt": "How many members are registered in this realm?",
-  "expected_answer": "The realm has approximately 50 registered members plus a system account.",
+  "name": "governance_basics",
+  "ashoka_instructions": "Ashoka is an AI governance assistant for decentralized communities.",
+  "user_prompt": "What is a realm in the context of decentralized governance?",
+  "expected_answer": "A realm is a self-governing digital community on the Internet Computer blockchain. It provides infrastructure for democratic decision-making, including proposals, voting, treasury management, and member coordination.",
   "semantic_threshold": 0.5
 }
