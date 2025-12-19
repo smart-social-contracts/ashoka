@@ -86,8 +86,11 @@ class PodManager:
         
         raise ValueError("RUNPOD_API_KEY not found in environment")
     
-    def _find_pod_by_type(self, pod_type: str) -> tuple[str, str]:
-        """Find existing pod by type, returns (pod_id, pod_url) or (None, None) if not found"""
+    def _find_pod_by_type(self, pod_type: str, raise_on_error: bool = False) -> tuple[str, str]:
+        """Find existing pod by type, returns (pod_id, pod_url) or (None, None) if not found.
+        
+        If raise_on_error is True, raises exceptions instead of returning (None, None) on API errors.
+        """
         try:
             # Get all pods
             pods = runpod.get_pods()
@@ -113,6 +116,8 @@ class PodManager:
             
         except Exception as e:
             self._print(f"❌ Error finding pod: {e}", force=True)
+            if raise_on_error:
+                raise
             return None, None
     
     def _get_pod_url(self, pod_type: str) -> str:
@@ -237,8 +242,12 @@ class PodManager:
         """Stop a pod using RunPod SDK"""
         self._print(f"Stopping {pod_type} pod...")
         
-        # Find existing pod by name pattern
-        pod_id, pod_url = self._find_pod_by_type(pod_type)
+        # Find existing pod by name pattern - raise on error to detect auth failures
+        try:
+            pod_id, pod_url = self._find_pod_by_type(pod_type, raise_on_error=True)
+        except Exception as e:
+            self._print(f"❌ Failed to find pod due to API error: {e}", force=True)
+            return False
         
         if not pod_id:
             self._print(f"❌ No {pod_type} pod found. No action needed.")
