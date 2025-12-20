@@ -59,6 +59,7 @@ class RealmStatusScheduler:
             
         except Exception as e:
             logger.error(f"Error loading realms configuration: {e}")
+            traceback.print_exc()
             self.realms_config = []
     
     def start(self):
@@ -110,6 +111,7 @@ class RealmStatusScheduler:
                 
             except Exception as e:
                 logger.error(f"Error in scheduler loop: {e}")
+                traceback.print_exc()
             
             # Wait for next interval
             time.sleep(self.fetch_interval)
@@ -128,6 +130,7 @@ class RealmStatusScheduler:
             
         except Exception as e:
             logger.error(f"Error in immediate fetch: {e}")
+            traceback.print_exc()
             return {}
     
     def add_realm(self, realm_principal: str, realm_url: str, name: str = None):
@@ -173,6 +176,7 @@ class RealmStatusScheduler:
             logger.info("Saved realms configuration to file")
         except Exception as e:
             logger.error(f"Error saving realms configuration: {e}")
+            traceback.print_exc()
     
     def get_status(self) -> Dict:
         """Get scheduler status information"""

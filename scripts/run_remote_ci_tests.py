@@ -208,6 +208,7 @@ class RemoteCITestRunner:
             print(f"⚠️ Could not fetch detailed results: {e}")
         except Exception as e:
             print(f"⚠️ Error processing detailed results: {e}")
+            traceback.print_exc()
     
     def run(self) -> None:
         """Run the complete CI test workflow"""
@@ -231,6 +232,7 @@ class RemoteCITestRunner:
             sys.exit(1)
         except Exception as e:
             print(f"❌ Unexpected error: {e}")
+            traceback.print_exc()
             sys.exit(1)
 
 

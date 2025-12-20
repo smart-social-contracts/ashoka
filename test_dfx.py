@@ -21,6 +21,7 @@ def test_dfx_installation():
         return False
     except Exception as e:
         print(f"❌ Error checking DFX: {e}")
+        traceback.print_exc()
         return False
 
 def test_dfx_json_output():
@@ -65,6 +66,7 @@ def test_dfx_json_output():
         return False
     except Exception as e:
         print(f"❌ Error testing DFX JSON output: {e}")
+        traceback.print_exc()
         return False
 
 def test_dfx_basic_functionality():
@@ -85,6 +87,7 @@ def test_dfx_basic_functionality():
             
     except Exception as e:
         print(f"❌ Error testing basic DFX functionality: {e}")
+        traceback.print_exc()
         return False
 
 def main():

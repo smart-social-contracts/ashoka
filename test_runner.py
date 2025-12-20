@@ -38,6 +38,7 @@ try:
     print("Model loaded successfully!")
 except Exception as e:
     print(f"Error loading model: {e}")
+    traceback.print_exc()
     exit(1)
 
 
@@ -70,12 +71,14 @@ def fetch_tests_from_github():
                 print(f"   ✓ Loaded: {file_name}")
             except Exception as e:
                 print(f"   ✗ Failed to load {file_name}: {e}")
+                traceback.print_exc()
         
         print(f"✅ Loaded {len(test_cases)} tests from GitHub")
         return test_cases
         
     except Exception as e:
         print(f"⚠️ Failed to fetch from GitHub: {e}")
+        traceback.print_exc()
         print("   Falling back to local tests...")
         return None
 
@@ -131,6 +134,7 @@ def ask_ashoka(question, realm_status=None, api_url="http://localhost:5000/api/a
     except Exception as e:
         error_msg = f"Request Error: {str(e)}"
         print(error_msg)
+        traceback.print_exc()
         return error_msg
 
 
@@ -159,6 +163,7 @@ def ask_ashoka_with_tools(question, realm_folder, network="local", api_url="http
     except Exception as e:
         error_msg = f"Request Error: {str(e)}"
         print(error_msg)
+        traceback.print_exc()
         return error_msg
 
 def semantic_similarity(text1, text2):

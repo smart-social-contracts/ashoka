@@ -10,7 +10,7 @@ import os
 from pathlib import Path
 import time
 from typing import Optional, Dict, Any
-
+import traceback
 
 class AshokaClient:
     """Client for interacting with Ashoka API"""
@@ -45,6 +45,7 @@ class AshokaClient:
             sys.exit(1)
         except Exception as e:
             print(f"❌ Error: {str(e)}")
+            traceback.print_exc()
             sys.exit(1)
     
     def ask_question(self, question: str, user_principal: str = "", realm_principal: str = "", 
@@ -162,6 +163,7 @@ def load_env_config() -> str:
                         return url.rstrip('/')
         except Exception as e:
             print_info(f"Warning: Could not read public.env: {e}")
+            traceback.print_exc()
     
     # Fallback to localhost
     return "http://localhost:5000"
@@ -179,6 +181,7 @@ def cmd_ask(args, client: AshokaClient):
             print_info(f"Loaded question from {args.question_file}")
         except Exception as e:
             print_error(f"Failed to load question file: {e}")
+            traceback.print_exc()
             return
     
     # Validate that we have a question from either source
@@ -197,6 +200,7 @@ def cmd_ask(args, client: AshokaClient):
             print_info(f"Loaded realm status from {args.realm_status_file}")
         except Exception as e:
             print_error(f"Failed to load realm status file: {e}")
+            traceback.print_exc()
             return
     
     result = client.ask_question(
@@ -289,6 +293,7 @@ def cmd_personas(args, client: AshokaClient):
                 print_info(f"Loaded content from {args.content}")
             except Exception as e:
                 print_error(f"Failed to read content file: {e}")
+                traceback.print_exc()
                 return
         
         result = client.create_persona(args.name, content)

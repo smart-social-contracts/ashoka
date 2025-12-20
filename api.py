@@ -288,9 +288,11 @@ def monitor_inactivity():
                         log("⚠️ Pod stop failed")
                 except Exception as e:
                     log(f"❌ Error stopping pod: {e}")
+                    traceback.print_exc()
                 
         except Exception as e:
             log(f"Error in inactivity monitor: {e}")
+            traceback.print_exc()
             time.sleep(INACTIVITY_CHECK_INTERVAL_SECONDS)  # Continue monitoring even if there's an error
 
 def start_inactivity_monitor():

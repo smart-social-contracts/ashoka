@@ -4,6 +4,7 @@ Realm Tools - Functions that Ashoka LLM can call to explore realm data
 """
 import subprocess
 import json
+import traceback
 from typing import Optional
 
 
@@ -30,6 +31,7 @@ def db_get(entity_type: str, network: str = "staging", realm_folder: str = "../r
     except subprocess.TimeoutExpired:
         return "Error: Command timed out"
     except Exception as e:
+        traceback.print_exc()
         return f"Error: {str(e)}"
 
 
@@ -55,6 +57,7 @@ def realm_status(network: str = "local", realm_folder: str = ".") -> str:
     except subprocess.TimeoutExpired:
         return "Error: Command timed out"
     except Exception as e:
+        traceback.print_exc()
         return f"Error: {str(e)}"
 
 

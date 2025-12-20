@@ -180,6 +180,7 @@ def main():
             
     except Exception as e:
         print(f"\n❌ Error creating volume: {e}")
+        traceback.print_exc()
         sys.exit(1)
 
 

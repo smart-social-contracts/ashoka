@@ -116,6 +116,7 @@ class PodManager:
             
         except Exception as e:
             self._print(f"❌ Error finding pod: {e}", force=True)
+            traceback.print_exc()
             if raise_on_error:
                 raise
             return None, None
@@ -154,6 +155,7 @@ class PodManager:
                 
         except Exception as e:
             self._print(f"❌ Failed to get pod status: {e}", force=True)
+            traceback.print_exc()
             return 'Error'
     
     def wait_for_status(self, pod_id: str, target_statuses: list, timeout: int = 300) -> bool:
@@ -232,6 +234,7 @@ class PodManager:
                 
         except Exception as e:
             self._print(f"❌ Start failed: {e}", force=True)
+            traceback.print_exc()
             if deploy_new_if_needed:
                 self._print("Start command failed, terminating current pod and attempting to deploy a new pod...")
                 self.terminate_pod(pod_type)
@@ -247,6 +250,7 @@ class PodManager:
             pod_id, pod_url = self._find_pod_by_type(pod_type, raise_on_error=True)
         except Exception as e:
             self._print(f"❌ Failed to find pod due to API error: {e}", force=True)
+            traceback.print_exc()
             return False
         
         if not pod_id:
@@ -291,6 +295,7 @@ class PodManager:
                 
         except Exception as e:
             self._print(f"❌ Stop failed: {e}", force=True)
+            traceback.print_exc()
             return False
     
     def restart_pod(self, pod_type: str, deploy_new_if_needed: bool = False) -> bool:
@@ -374,6 +379,7 @@ class PodManager:
                 except Exception as e:
                     if self.verbose:
                         self._print(f"Warning: Could not get detailed pricing for {gpu_basic.get('id', 'Unknown')}: {e}")
+                        traceback.print_exc()
                     # Fallback to basic info
                     detailed_gpus.append(gpu_basic)
             
@@ -477,6 +483,7 @@ class PodManager:
                 except Exception as gpu_error:
                     error_msg = str(gpu_error)
                     print('Error: ' + error_msg)
+                    traceback.print_exc()
                     if "no longer any instances available" in error_msg.lower():
                         self._print(f"⚠️ {selected_gpu['name']} not available, trying next GPU...")
                     elif "insufficient funds" in error_msg.lower():
@@ -523,6 +530,7 @@ class PodManager:
                 
         except Exception as e:
             self._print(f"❌ Termination failed: {e}", force=True)
+            traceback.print_exc()
             return False
     
     def _get_api_url(self, pod_type: str) -> str:
@@ -575,6 +583,7 @@ class PodManager:
             return False
         except Exception as e:
             self._print(f"❌ Error: {e}", force=True)
+            traceback.print_exc()
             return False
     
     def list_personas_api(self, pod_type: str) -> bool:
@@ -606,6 +615,7 @@ class PodManager:
             return False
         except Exception as e:
             self._print(f"❌ Error: {e}", force=True)
+            traceback.print_exc()
             return False
     
     def get_persona_api(self, pod_type: str, persona_name: str) -> bool:
@@ -639,6 +649,7 @@ class PodManager:
             return False
         except Exception as e:
             self._print(f"❌ Error: {e}", force=True)
+            traceback.print_exc()
             return False
     
     def get_realm_status_api(self, pod_type: str, realm_principal: str = None) -> bool:
@@ -681,6 +692,7 @@ class PodManager:
             return False
         except Exception as e:
             self._print(f"❌ Error: {e}", force=True)
+            traceback.print_exc()
             return False
     
     def health_check_api(self, pod_type: str) -> bool:
@@ -711,6 +723,7 @@ class PodManager:
             return False
         except Exception as e:
             self._print(f"❌ Error: {e}", force=True)
+            traceback.print_exc()
             return False
     
 def main():
@@ -806,11 +819,12 @@ API Usage Examples:
                         sys.exit(1)
                 except Exception as e:
                     print(f"❌ Error reading question file: {e}")
+                    traceback.print_exc()
                     sys.exit(1)
             else:
                 print("❌ Error: Either --question or --question-file is required for ask action")
                 sys.exit(1)
-            
+
             realm_status = None
             if args.realm_status_file:
                 try:
@@ -818,8 +832,9 @@ API Usage Examples:
                         realm_status = json.load(f)
                 except Exception as e:
                     print(f"❌ Error reading realm status file: {e}")
+                    traceback.print_exc()
                     sys.exit(1)
-            
+
             success = manager.ask_api(args.pod_type, question, args.persona, realm_status)
         elif args.action == 'personas':
             success = manager.list_personas_api(args.pod_type)
@@ -832,11 +847,12 @@ API Usage Examples:
             success = manager.get_realm_status_api(args.pod_type, args.realm_principal)
         elif args.action == 'health':
             success = manager.health_check_api(args.pod_type)
-        
+
         sys.exit(0 if success else 1)
-        
+
     except Exception as e:
         print(f"❌ Error: {e}")
+        traceback.print_exc()
         sys.exit(1)
 
 
