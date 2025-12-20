@@ -441,7 +441,7 @@ class PodManager:
                     gpu_count = int(self.config.get('GPU_COUNT', '1'))
                     result = runpod.create_pod(
                         name=pod_name,
-                        template_id="1fnzgryfq6",
+                        template_id=self.config.get('TEMPLATE_ID'),
                         image_name=image_name,
                         gpu_type_id=selected_gpu['id'],
                         # cloud_type="COMMUNITY",  # Use community cloud for better pricing
