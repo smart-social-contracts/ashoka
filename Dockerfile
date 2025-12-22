@@ -8,7 +8,7 @@ RUN apt-get update && apt-get upgrade -y
 RUN apt-get install -y --fix-broken
 RUN apt-get update
 RUN apt-get install -y --no-install-recommends \
-    curl git python3 python3-pip python3-venv unzip sudo nano wget netcat net-tools openssh-server \
+    curl git python3 python3-pip python3-venv unzip sudo nano wget jq netcat net-tools openssh-server \
     ca-certificates \
     gnupg \
     lsb-release \
