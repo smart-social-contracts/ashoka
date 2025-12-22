@@ -11,7 +11,8 @@ RUN apt-get install -y --no-install-recommends \
     curl git python3 python3-pip python3-venv unzip sudo nano wget netcat net-tools openssh-server \
     ca-certificates \
     gnupg \
-    lsb-release
+    lsb-release \
+    build-essential
 RUN apt-get install -y --no-install-recommends postgresql postgresql-contrib
 
 # --- Cloudflared installation ---
@@ -85,7 +86,7 @@ EXPOSE 11434
 EXPOSE 5432
 
 # ChromaDB
-EXPOSE 8000
+EXPOSE 8001
 
 # SSH
 EXPOSE 2222
