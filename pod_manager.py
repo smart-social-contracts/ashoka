@@ -50,7 +50,7 @@ class PodManager:
         config.setdefault('MAX_GPU_PRICE', '0.30')
         config.setdefault('MIN_GPU_PRICE', '0.05')
         config.setdefault('GPU_COUNT', '1')
-        config.setdefault('TEMPLATE_ID', 'ashoka1')
+        config.setdefault('TEMPLATE_ID', '1fnzgryfq6')
         
         # Override MAX_GPU_PRICE if provided via command line
         if self.max_gpu_price is not None:
