@@ -99,13 +99,13 @@ fi
 
 # Start ChromaDB server in background
 echo "Starting ChromaDB server..."
-python3 -c "import chromadb.cli.cli; chromadb.cli.cli.app()" run --host 0.0.0.0 --port 8000 --path /app/chromadb_data 2>&1 | tee -a logs/chromadb.log &
+python3 -c "import chromadb.cli.cli; chromadb.cli.cli.app()" run --host 0.0.0.0 --port 8001 --path /app/chromadb_data 2>&1 | tee -a logs/chromadb.log &
 CHROMADB_PID=$!
 
 CHROMADB_STARTUP_TIMEOUT=60
 echo "Waiting for ChromaDB to be ready in $CHROMADB_STARTUP_TIMEOUT seconds..."
 for i in {1..$CHROMADB_STARTUP_TIMEOUT}; do
-    if curl -s http://localhost:8000/api/v1/heartbeat > /dev/null 2>&1; then
+    if curl -s http://localhost:8001/api/v1/heartbeat > /dev/null 2>&1; then
         echo "ChromaDB is ready!"
         break
     fi
