@@ -157,6 +157,12 @@ class RealmStatusService:
     
     def _calculate_health_score(self, status_data: Dict) -> float:
         """Calculate a simple health score based on status data"""
+        def to_int(val, default=0):
+            try:
+                return int(val) if val is not None else default
+            except (ValueError, TypeError):
+                return default
+        
         try:
             score = 0.0
             
@@ -164,12 +170,12 @@ class RealmStatusService:
             if status_data.get('status') == 'ok':
                 score += 50.0
             
-            # Points for having users
-            if status_data.get('users_count', 0) > 0:
+            # Points for having users (convert string to int)
+            if to_int(status_data.get('users_count', 0)) > 0:
                 score += 20.0
             
             # Points for having organizations
-            if status_data.get('organizations_count', 0) > 0:
+            if to_int(status_data.get('organizations_count', 0)) > 0:
                 score += 10.0
             
             # Points for having extensions
@@ -179,9 +185,9 @@ class RealmStatusService:
             
             # Points for recent activity (having any entities)
             total_entities = (
-                status_data.get('mandates_count', 0) + status_data.get('tasks_count', 0) +
-                status_data.get('transfers_count', 0) + status_data.get('proposals_count', 0) +
-                status_data.get('votes_count', 0)
+                to_int(status_data.get('mandates_count', 0)) + to_int(status_data.get('tasks_count', 0)) +
+                to_int(status_data.get('transfers_count', 0)) + to_int(status_data.get('proposals_count', 0)) +
+                to_int(status_data.get('votes_count', 0))
             )
             if total_entities > 0:
                 score += 10.0

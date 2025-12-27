@@ -60,14 +60,21 @@ def build_structured_realm_context(realm_status):
     
     status_data = realm_status.get('status_data', {})
     
-    # Extract key metrics
-    users_count = status_data.get('users_count', 0)
-    organizations_count = status_data.get('organizations_count', 0)
-    proposals_count = status_data.get('proposals_count', 0)
-    votes_count = status_data.get('votes_count', 0)
-    mandates_count = status_data.get('mandates_count', 0)
-    tasks_count = status_data.get('tasks_count', 0)
-    transfers_count = status_data.get('transfers_count', 0)
+    # Helper to safely convert string values to int
+    def to_int(val, default=0):
+        try:
+            return int(val) if val is not None else default
+        except (ValueError, TypeError):
+            return default
+    
+    # Extract key metrics (DFX returns strings, need to convert to int)
+    users_count = to_int(status_data.get('users_count', 0))
+    organizations_count = to_int(status_data.get('organizations_count', 0))
+    proposals_count = to_int(status_data.get('proposals_count', 0))
+    votes_count = to_int(status_data.get('votes_count', 0))
+    mandates_count = to_int(status_data.get('mandates_count', 0))
+    tasks_count = to_int(status_data.get('tasks_count', 0))
+    transfers_count = to_int(status_data.get('transfers_count', 0))
     extensions = status_data.get('extensions', [])
     realm_name = status_data.get('realm_name', 'Unnamed Realm')
     health_score = realm_status.get('health_score', 0)
