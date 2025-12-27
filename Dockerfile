@@ -46,9 +46,6 @@ ARG DFX_VERSION=0.29.0
 RUN DFX_VERSION=${DFX_VERSION} DFXVM_INIT_YES=true sh -ci "$(curl -fsSL https://internetcomputer.org/install.sh)"
 ENV PATH="/root/.local/share/dfx/bin:$PATH"
 
-# --- Realms CLI installation ---
-RUN pip3 install realms-gos
-
 # --- Ollama installation ---
 RUN curl -fsSL https://ollama.com/install.sh | sh
 ENV PATH="/root/.ollama/bin:${PATH}"
