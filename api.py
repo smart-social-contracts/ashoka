@@ -136,9 +136,13 @@ Last Updated: {last_updated}
     if extensions:
         context += "\n\n=== INSTALLED EXTENSIONS ==="
         for ext in extensions:
-            ext_name = ext.get('name', 'Unknown')
-            ext_version = ext.get('version', 'Unknown')
-            context += f"\n• {ext_name} (v{ext_version})"
+            # Extensions can be strings or dicts depending on DFX response
+            if isinstance(ext, str):
+                context += f"\n• {ext}"
+            else:
+                ext_name = ext.get('name', 'Unknown')
+                ext_version = ext.get('version', 'Unknown')
+                context += f"\n• {ext_name} (v{ext_version})"
     
     # Add governance insights
     context += "\n\n=== GOVERNANCE INSIGHTS ==="
@@ -159,10 +163,13 @@ Last Updated: {last_updated}
     
     if len(extensions) == 0:
         context += "\n• Basic governance only - no extensions installed"
-    elif any(ext.get('name') == 'demo_loader' for ext in extensions):
-        context += "\n• Demo data may be present - realm might be in testing/demo mode"
-    elif any(ext.get('name') == 'justice_litigation' for ext in extensions):
-        context += "\n• Justice system enabled - realm has legal dispute resolution"
+    else:
+        # Extensions can be strings or dicts
+        ext_names = [ext if isinstance(ext, str) else ext.get('name', '') for ext in extensions]
+        if 'demo_loader' in ext_names:
+            context += "\n• Demo data may be present - realm might be in testing/demo mode"
+        if 'justice_litigation' in ext_names:
+            context += "\n• Justice system enabled - realm has legal dispute resolution"
     
     context += "\n\n"
     return context
