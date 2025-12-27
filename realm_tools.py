@@ -107,9 +107,20 @@ def execute_tool(tool_name: str, arguments: dict, network: str = "staging", real
     if tool_name not in TOOL_FUNCTIONS:
         return f"Error: Unknown tool '{tool_name}'"
     
-    # Add default network and realm_folder to arguments
-    arguments["network"] = arguments.get("network", network)
-    arguments["realm_folder"] = arguments.get("realm_folder", realm_folder)
-    
+    # Filter to only valid arguments for the function
     func = TOOL_FUNCTIONS[tool_name]
-    return func(**arguments)
+    import inspect
+    valid_params = set(inspect.signature(func).parameters.keys())
+    
+    # Start with network and realm_folder defaults
+    filtered_args = {
+        "network": network,
+        "realm_folder": realm_folder
+    }
+    
+    # Add any valid arguments from the LLM
+    for key, value in arguments.items():
+        if key in valid_params:
+            filtered_args[key] = value
+    
+    return func(**filtered_args)
