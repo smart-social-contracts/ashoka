@@ -83,11 +83,19 @@ class RealmStatusService:
             logger.info(f"Fetching and storing status for realm: {realm_principal}")
             
             # Use DFX to fetch status data
-            status_data = self.fetch_realm_status_via_dfx(realm_principal, realm_url, network)
+            raw_status_data = self.fetch_realm_status_via_dfx(realm_principal, realm_url, network)
             
-            if not status_data:
+            if not raw_status_data:
                 logger.error(f"Failed to fetch status data for realm {realm_principal}")
                 return False
+            
+            # Extract the actual status from nested DFX response
+            # DFX returns: {"data": {"status": {...}}, "success": true}
+            status_data = raw_status_data
+            if isinstance(raw_status_data, dict):
+                if 'data' in raw_status_data and 'status' in raw_status_data.get('data', {}):
+                    status_data = raw_status_data['data']['status']
+                    logger.info(f"Extracted nested status data for {realm_principal}")
             
             # Use realm_url if provided, otherwise construct from principal
             if not realm_url:
