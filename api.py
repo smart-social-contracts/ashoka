@@ -387,7 +387,7 @@ def ask():
     # Send to Ollama using chat API with tools
     try:
         if stream:
-            return Response(stream_response(ollama_url, prompt, user_principal, realm_principal, question, actual_persona_name), 
+            return Response(stream_response_with_tools(ollama_url, prompt, user_principal, realm_principal, question, actual_persona_name, network, realm_folder), 
                           mimetype='text/plain')
         else:
             # Build messages for chat API
@@ -474,29 +474,104 @@ def ask_with_tools():
     return ask()
 
 
-def stream_response(ollama_url, prompt, user_principal, realm_principal, question, persona_name):
-    """Generator function for streaming responses"""
+def stream_response_with_tools(ollama_url, prompt, user_principal, realm_principal, question, persona_name, network="staging", realm_folder="."):
+    """Generator function for streaming responses with tool calling support.
+    
+    First checks if tools are needed (non-streaming), executes them if so,
+    then streams the final response.
+    """
     try:
-        response = requests.post(f"{ollama_url}/api/generate", json={
-            "model": ASHOKA_DEFAULT_MODEL,
-            "prompt": prompt,
-            "stream": True
-        }, stream=True)
+        # Build messages for chat API
+        messages = [
+            {"role": "system", "content": prompt},
+            {"role": "user", "content": question}
+        ]
         
-        full_answer = ""
-        for line in response.iter_lines():
-            if line:
-                data = json.loads(line.decode('utf-8'))
-                if 'response' in data:
-                    chunk = data['response']
-                    full_answer += chunk
-                    yield chunk
+        # First call - check if tools are needed (non-streaming)
+        log("Checking for tool calls...")
+        response = requests.post(f"{ollama_url}/api/chat", json={
+            "model": ASHOKA_DEFAULT_MODEL,
+            "messages": messages,
+            "tools": REALM_TOOLS,
+            "stream": False
+        })
+        
+        result = response.json()
+        assistant_message = result.get('message', {})
+        messages.append(assistant_message)
+        
+        # Check if tool calls were requested
+        if assistant_message.get('tool_calls'):
+            log("Tool calls requested in streaming mode!")
+            
+            for tool_call in assistant_message['tool_calls']:
+                tool_name = tool_call['function']['name']
+                tool_args = tool_call['function']['arguments']
+                
+                log(f"Executing tool: {tool_name} with args: {tool_args}")
+                
+                # Execute the tool
+                tool_result = execute_tool(tool_name, tool_args, network=network, realm_folder=realm_folder)
+                
+                log(f"Tool result: {tool_result[:500]}..." if len(tool_result) > 500 else f"Tool result: {tool_result}")
+                
+                # Add tool result to messages
+                messages.append({
+                    "role": "tool",
+                    "content": tool_result
+                })
+            
+            # Stream the final response with tool results
+            log("Streaming final response with tool results...")
+            final_response = requests.post(f"{ollama_url}/api/chat", json={
+                "model": ASHOKA_DEFAULT_MODEL,
+                "messages": messages,
+                "stream": True
+            }, stream=True)
+            
+            full_answer = ""
+            for line in final_response.iter_lines():
+                if line:
+                    data = json.loads(line.decode('utf-8'))
+                    if 'message' in data and 'content' in data['message']:
+                        chunk = data['message']['content']
+                        full_answer += chunk
+                        yield chunk
                     
-                if data.get('done', False):
-                    # Save complete answer to conversation history with persona info
-                    save_to_conversation(user_principal, realm_principal, question, full_answer, prompt, persona_name)
-                    break
+                    if data.get('done', False):
+                        save_to_conversation(user_principal, realm_principal, question, full_answer, prompt, persona_name)
+                        break
+        else:
+            # No tool calls - stream directly using chat API
+            log("No tools needed, streaming response...")
+            full_answer = assistant_message.get('content', '')
+            
+            # If we already have content from the first call, yield it
+            if full_answer:
+                yield full_answer
+                save_to_conversation(user_principal, realm_principal, question, full_answer, prompt, persona_name)
+            else:
+                # Stream a new response
+                stream_response = requests.post(f"{ollama_url}/api/chat", json={
+                    "model": ASHOKA_DEFAULT_MODEL,
+                    "messages": messages[:-1],  # Remove empty assistant message
+                    "stream": True
+                }, stream=True)
+                
+                for line in stream_response.iter_lines():
+                    if line:
+                        data = json.loads(line.decode('utf-8'))
+                        if 'message' in data and 'content' in data['message']:
+                            chunk = data['message']['content']
+                            full_answer += chunk
+                            yield chunk
+                        
+                        if data.get('done', False):
+                            save_to_conversation(user_principal, realm_principal, question, full_answer, prompt, persona_name)
+                            break
+                            
     except Exception as e:
+        log(f"Error in stream_response_with_tools: {traceback.format_exc()}")
         yield f"Error: {str(e)}"
 
 def run_test_background(test_id):
