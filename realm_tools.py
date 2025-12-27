@@ -20,10 +20,15 @@ def db_get(entity_type: str, network: str = "staging", realm_folder: str = "../r
     Returns:
         JSON string of entities found
     """
+    import os
     cmd = ["realms", "db", "-f", realm_folder, "-n", network, "get", entity_type]
     
+    # Set environment to suppress DFX security warnings for read-only operations
+    env = os.environ.copy()
+    env['DFX_WARNING'] = '-mainnet_plaintext_identity'
+    
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30, env=env)
         if result.returncode == 0:
             return result.stdout.strip() or "No entities found"
         else:
@@ -46,10 +51,15 @@ def realm_status(network: str = "local", realm_folder: str = ".") -> str:
     Returns:
         JSON string with realm status including counts for users, proposals, votes, etc.
     """
+    import os
     cmd = ["realms", "realm", "call", "status", "-n", network]
     
+    # Set environment to suppress DFX security warnings for read-only operations
+    env = os.environ.copy()
+    env['DFX_WARNING'] = '-mainnet_plaintext_identity'
+    
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30, cwd=realm_folder)
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30, cwd=realm_folder, env=env)
         if result.returncode == 0:
             return result.stdout.strip() or "No status available"
         else:

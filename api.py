@@ -380,18 +380,75 @@ def ask():
     # Check if streaming is requested
     stream = data.get('stream', False)
     
-    # Send to Ollama
+    # Tool calling parameters
+    realm_folder = data.get('realm_folder', '.')
+    network = data.get('network', 'staging')
+    
+    # Send to Ollama using chat API with tools
     try:
         if stream:
             return Response(stream_response(ollama_url, prompt, user_principal, realm_principal, question, actual_persona_name), 
                           mimetype='text/plain')
         else:
-            response = requests.post(f"{ollama_url}/api/generate", json={
+            # Build messages for chat API
+            messages = [
+                {"role": "system", "content": prompt},
+                {"role": "user", "content": question}
+            ]
+            
+            # First call - may request tool use
+            log("Sending to Ollama with tools...")
+            response = requests.post(f"{ollama_url}/api/chat", json={
                 "model": ASHOKA_DEFAULT_MODEL,
-                "prompt": prompt,
+                "messages": messages,
+                "tools": REALM_TOOLS,
                 "stream": False
             })
-            answer = response.json()['response']
+            
+            result = response.json()
+            log(f"Ollama response: {json.dumps(result, indent=2)}")
+            
+            assistant_message = result.get('message', {})
+            messages.append(assistant_message)
+            tools_used = False
+            
+            # Check if tool calls were requested
+            if assistant_message.get('tool_calls'):
+                tools_used = True
+                log("Tool calls requested!")
+                
+                for tool_call in assistant_message['tool_calls']:
+                    tool_name = tool_call['function']['name']
+                    tool_args = tool_call['function']['arguments']
+                    
+                    log(f"Executing tool: {tool_name} with args: {tool_args}")
+                    
+                    # Execute the tool
+                    tool_result = execute_tool(tool_name, tool_args, network=network, realm_folder=realm_folder)
+                    
+                    log(f"Tool result: {tool_result[:500]}..." if len(tool_result) > 500 else f"Tool result: {tool_result}")
+                    
+                    # Add tool result to messages
+                    messages.append({
+                        "role": "tool",
+                        "content": tool_result
+                    })
+                
+                # Second call - get final response with tool results
+                log("Sending tool results back to Ollama...")
+                final_response = requests.post(f"{ollama_url}/api/chat", json={
+                    "model": ASHOKA_DEFAULT_MODEL,
+                    "messages": messages,
+                    "stream": False
+                })
+                
+                final_result = final_response.json()
+                answer = final_result.get('message', {}).get('content', 'No response')
+            else:
+                # No tool calls, use direct response
+                answer = assistant_message.get('content', 'No response')
+            
+            log(f"Final answer: {answer}")
             
             # Save to conversation history with persona info
             save_to_conversation(user_principal, realm_principal, question, answer, prompt, actual_persona_name)
@@ -399,7 +456,8 @@ def ask():
             return jsonify({
                 "success": True,
                 "answer": answer,
-                "persona_used": actual_persona_name
+                "persona_used": actual_persona_name,
+                "tools_used": tools_used
             })
     except Exception as e:
         log(f"Error: {traceback.format_exc()}")
@@ -409,99 +467,11 @@ def ask():
 @app.route('/api/ask-with-tools', methods=['POST'])
 def ask_with_tools():
     """
-    Ask endpoint with tool calling support.
-    Uses Ollama's chat API with tools to allow the LLM to query realm data.
+    DEPRECATED: Use /api/ask instead which now includes tool calling support.
+    This endpoint redirects to /api/ask for backward compatibility.
     """
-    update_activity()
-    
-    data = request.json
-    question = data.get('question')
-    ollama_url = data.get('ollama_url', 'http://localhost:11434')
-    realm_folder = data.get('realm_folder', '../realms/examples/demo/realm1')
-    network = data.get('network', 'staging')
-    
-    if not question:
-        return jsonify({"error": "Missing required field: question"}), 400
-    
-    log(f"\n{'='*80}")
-    log("ASK WITH TOOLS REQUEST")
-    log(f"Question: {question}")
-    log(f"Realm folder: {realm_folder}")
-    log(f"Network: {network}")
-    log(f"{'='*80}\n")
-    
-    # Build system message
-    system_message = """You are Ashoka, a helpful AI assistant for decentralized governance on the Internet Computer.
-You have access to tools to query realm data. Use them when the user asks about users, proposals, votes, transfers, or other realm entities.
-Be concise and helpful in your responses."""
-    
-    messages = [
-        {"role": "system", "content": system_message},
-        {"role": "user", "content": question}
-    ]
-    
-    try:
-        # First call - may request tool use
-        log("Sending to Ollama with tools...")
-        response = requests.post(f"{ollama_url}/api/chat", json={
-            "model": ASHOKA_DEFAULT_MODEL,
-            "messages": messages,
-            "tools": REALM_TOOLS,
-            "stream": False
-        })
-        
-        result = response.json()
-        log(f"Ollama response: {json.dumps(result, indent=2)}")
-        
-        assistant_message = result.get('message', {})
-        messages.append(assistant_message)
-        
-        # Check if tool calls were requested
-        if assistant_message.get('tool_calls'):
-            log("Tool calls requested!")
-            
-            for tool_call in assistant_message['tool_calls']:
-                tool_name = tool_call['function']['name']
-                tool_args = tool_call['function']['arguments']
-                
-                log(f"Executing tool: {tool_name} with args: {tool_args}")
-                
-                # Execute the tool
-                tool_result = execute_tool(tool_name, tool_args, network=network, realm_folder=realm_folder)
-                
-                log(f"Tool result: {tool_result[:500]}..." if len(tool_result) > 500 else f"Tool result: {tool_result}")
-                
-                # Add tool result to messages
-                messages.append({
-                    "role": "tool",
-                    "content": tool_result
-                })
-            
-            # Second call - get final response with tool results
-            log("Sending tool results back to Ollama...")
-            final_response = requests.post(f"{ollama_url}/api/chat", json={
-                "model": ASHOKA_DEFAULT_MODEL,
-                "messages": messages,
-                "stream": False
-            })
-            
-            final_result = final_response.json()
-            answer = final_result.get('message', {}).get('content', 'No response')
-        else:
-            # No tool calls, use direct response
-            answer = assistant_message.get('content', 'No response')
-        
-        log(f"Final answer: {answer}")
-        
-        return jsonify({
-            "success": True,
-            "answer": answer,
-            "tools_used": bool(assistant_message.get('tool_calls'))
-        })
-        
-    except Exception as e:
-        log(f"Error in ask_with_tools: {traceback.format_exc()}")
-        return jsonify({"error": str(e)}), 500
+    log("WARNING: /api/ask-with-tools is deprecated. Use /api/ask instead.")
+    return ask()
 
 
 def stream_response(ollama_url, prompt, user_principal, realm_principal, question, persona_name):
