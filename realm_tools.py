@@ -83,8 +83,8 @@ REALM_TOOLS = [
                 "properties": {
                     "entity_type": {
                         "type": "string",
-                        "description": "Type of entity to query: User, Proposal, Vote, Transfer, Mandate, Task, Organization, Codex, Dispute, Instrument, License, Trade",
-                        "enum": ["User", "Proposal", "Vote", "Transfer", "Mandate", "Task", "Organization", "Codex", "Dispute", "Instrument", "License", "Trade"]
+                        "description": "Type of entity to query from the realm database",
+                        "enum": ["Balance", "Call", "Codex", "Contract", "Dispute", "Human", "Identity", "Instrument", "Invoice", "Land", "License", "Mandate", "Member", "Notification", "Organization", "PaymentAccount", "Permission", "Proposal", "Realm", "Registry", "Service", "Status", "Task", "TaskExecution", "TaskSchedule", "TaskStep", "Trade", "Transfer", "Treasury", "User", "UserProfile", "Vote"]
                     }
                 },
                 "required": ["entity_type"]
