@@ -331,12 +331,14 @@ def cmd_realm(args, client: AshokaClient):
             print(f"Last Updated: {data.get('last_updated', 'Unknown')}")
             
             status_data = data.get('status_data', {})
+            # Handle nested structure: status_data.data.status contains the actual metrics
+            metrics = status_data.get('data', {}).get('status', status_data)
             print(f"\n📊 Metrics:")
-            print(f"   Users: {status_data.get('users_count', 0)}")
-            print(f"   Organizations: {status_data.get('organizations_count', 0)}")
-            print(f"   Proposals: {status_data.get('proposals_count', 0)}")
-            print(f"   Votes: {status_data.get('votes_count', 0)}")
-            print(f"   Extensions: {len(status_data.get('extensions', []))}")
+            print(f"   Users: {metrics.get('users_count', 0)}")
+            print(f"   Organizations: {metrics.get('organizations_count', 0)}")
+            print(f"   Proposals: {metrics.get('proposals_count', 0)}")
+            print(f"   Votes: {metrics.get('votes_count', 0)}")
+            print(f"   Extensions: {len(metrics.get('extensions', []))}")
             
             if args.verbose:
                 print(f"\n🔍 Raw Data:")
@@ -365,10 +367,11 @@ def cmd_realm(args, client: AshokaClient):
             print(f"\n🏛️  Tracked Realms:")
             for realm in realms:
                 status_data = realm.get('status_data', {})
-                name = status_data.get('realm_name', 'Unknown')
+                metrics = status_data.get('data', {}).get('status', status_data)
+                name = metrics.get('realm_name', status_data.get('realm_name', 'Unknown'))
                 principal = realm.get('realm_principal', 'Unknown')[:12] + "..."
                 health = realm.get('health_score', 0)
-                users = status_data.get('users_count', 0)
+                users = metrics.get('users_count', 0)
                 print(f"   • {name} ({principal}) - Health: {health}/100, Users: {users}")
             print()
         else:

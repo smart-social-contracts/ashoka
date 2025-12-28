@@ -131,6 +131,16 @@ class RealmStatusService:
         
         return results
     
+    def _extract_metrics(self, status_data: Dict) -> Dict:
+        """Extract metrics from possibly nested status_data structure.
+        
+        The data can be either flat (metrics at top level) or nested at status_data.data.status
+        """
+        if not status_data:
+            return {}
+        # Handle nested structure: status_data.data.status contains the actual metrics
+        return status_data.get('data', {}).get('status', status_data)
+    
     def get_realm_status_summary(self, realm_principal: str) -> Optional[Dict]:
         """Get a summary of the latest realm status"""
         try:
@@ -139,6 +149,7 @@ class RealmStatusService:
                 return None
             
             status_data = latest_status['status_data']
+            metrics = self._extract_metrics(status_data)
             
             # Create a summary with key metrics
             summary = {
@@ -146,7 +157,8 @@ class RealmStatusService:
                 'realm_url': latest_status['realm_url'],
                 'last_updated': latest_status['created_at'].isoformat() if latest_status['created_at'] else None,
                 'status_data': status_data,
-                'health_score': self._calculate_health_score(status_data)
+                'metrics': metrics,  # Flattened metrics for easy access
+                'health_score': self._calculate_health_score(metrics)
             }
             
             return summary
@@ -155,8 +167,8 @@ class RealmStatusService:
             logger.error(f"Error getting realm status summary: {e}")
             return None
     
-    def _calculate_health_score(self, status_data: Dict) -> float:
-        """Calculate a simple health score based on status data"""
+    def _calculate_health_score(self, metrics: Dict) -> float:
+        """Calculate a simple health score based on metrics data"""
         def to_int(val, default=0):
             try:
                 return int(val) if val is not None else default
@@ -167,27 +179,27 @@ class RealmStatusService:
             score = 0.0
             
             # Base score for being online
-            if status_data.get('status') == 'ok':
+            if metrics.get('status') == 'ok':
                 score += 50.0
             
             # Points for having users (convert string to int)
-            if to_int(status_data.get('users_count', 0)) > 0:
+            if to_int(metrics.get('users_count', 0)) > 0:
                 score += 20.0
             
             # Points for having organizations
-            if to_int(status_data.get('organizations_count', 0)) > 0:
+            if to_int(metrics.get('organizations_count', 0)) > 0:
                 score += 10.0
             
             # Points for having extensions
-            extensions = status_data.get('extensions', [])
+            extensions = metrics.get('extensions', [])
             if extensions and len(extensions) > 0:
                 score += 10.0
             
             # Points for recent activity (having any entities)
             total_entities = (
-                to_int(status_data.get('mandates_count', 0)) + to_int(status_data.get('tasks_count', 0)) +
-                to_int(status_data.get('transfers_count', 0)) + to_int(status_data.get('proposals_count', 0)) +
-                to_int(status_data.get('votes_count', 0))
+                to_int(metrics.get('mandates_count', 0)) + to_int(metrics.get('tasks_count', 0)) +
+                to_int(metrics.get('transfers_count', 0)) + to_int(metrics.get('proposals_count', 0)) +
+                to_int(metrics.get('votes_count', 0))
             )
             if total_entities > 0:
                 score += 10.0
@@ -206,12 +218,14 @@ class RealmStatusService:
             
             for status in all_statuses:
                 status_data = status['status_data']
+                metrics = self._extract_metrics(status_data)
                 summary = {
                     'realm_principal': status['realm_principal'],
                     'realm_url': status['realm_url'],
                     'last_updated': status['created_at'].isoformat() if status['created_at'] else None,
                     'status_data': status_data,
-                    'health_score': self._calculate_health_score(status_data)
+                    'metrics': metrics,
+                    'health_score': self._calculate_health_score(metrics)
                 }
                 summaries.append(summary)
             
