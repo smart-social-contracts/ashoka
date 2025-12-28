@@ -41,7 +41,23 @@ class AshokaClient:
             print("   Make sure the API server is running (python api.py)")
             sys.exit(1)
         except requests.exceptions.HTTPError as e:
-            print(f"❌ HTTP Error {e.response.status_code}: {e.response.text}")
+            status = e.response.status_code
+            if status == 502:
+                print(f"❌ API server is currently unavailable (502 Bad Gateway)")
+                print(f"   The server may be restarting after a deployment. Please try again in a minute.")
+            elif status == 503:
+                print(f"❌ API server is temporarily unavailable (503 Service Unavailable)")
+                print(f"   Please try again in a few moments.")
+            elif status == 504:
+                print(f"❌ API request timed out (504 Gateway Timeout)")
+                print(f"   The server may be overloaded. Please try again.")
+            elif status == 500:
+                print(f"❌ Internal server error (500)")
+                print(f"   Something went wrong on the server side.")
+            elif status == 404:
+                print(f"❌ API endpoint not found (404)")
+            else:
+                print(f"❌ HTTP Error {status}")
             sys.exit(1)
         except Exception as e:
             print(f"❌ Error: {str(e)}")
