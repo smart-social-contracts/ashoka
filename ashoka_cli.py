@@ -156,6 +156,7 @@ def load_env_config() -> str:
 
 def cmd_ask(args, client: AshokaClient):
     """Handle ask command"""
+    verbose = getattr(args, 'verbose', False)
     
     # Determine question source
     question = args.question
@@ -163,7 +164,8 @@ def cmd_ask(args, client: AshokaClient):
         try:
             with open(args.question_file, 'r', encoding='utf-8') as f:
                 question = f.read().strip()
-            print_info(f"Loaded question from {args.question_file}")
+            if verbose:
+                print_info(f"Loaded question from {args.question_file}")
         except Exception as e:
             print_error(f"Failed to load question file: {e}")
             traceback.print_exc()
@@ -174,7 +176,8 @@ def cmd_ask(args, client: AshokaClient):
         print_error("No question provided. Use either 'question' argument or --question-file")
         return
     
-    print_info(f"Asking question: '{question[:100]}{'...' if len(question) > 100 else ''}'")
+    if verbose:
+        print_info(f"Asking question: '{question[:100]}{'...' if len(question) > 100 else ''}'")
     
     # Load realm status from file if provided
     realm_status = None
@@ -182,7 +185,8 @@ def cmd_ask(args, client: AshokaClient):
         try:
             with open(args.realm_status_file, 'r') as f:
                 realm_status = json.load(f)
-            print_info(f"Loaded realm status from {args.realm_status_file}")
+            if verbose:
+                print_info(f"Loaded realm status from {args.realm_status_file}")
         except Exception as e:
             print_error(f"Failed to load realm status file: {e}")
             traceback.print_exc()
@@ -199,8 +203,9 @@ def cmd_ask(args, client: AshokaClient):
     )
     
     if result.get("success"):
-        print_success("Question answered successfully")
-        print(f"\n🤖 {result.get('persona_used', 'Ashoka').title()}: {result['answer']}\n")
+        if verbose:
+            print_success("Question answered successfully")
+        print(f"{result['answer']}")
     else:
         print_error(f"Failed to get answer: {result.get('error', 'Unknown error')}")
 
