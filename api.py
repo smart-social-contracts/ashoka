@@ -58,7 +58,9 @@ def build_structured_realm_context(realm_status):
     if not realm_status:
         return ""
     
+    # Use pre-extracted metrics if available, otherwise extract from nested structure
     status_data = realm_status.get('status_data', {})
+    metrics = realm_status.get('metrics', status_data.get('data', {}).get('status', status_data))
     
     # Helper to safely convert string values to int
     def to_int(val, default=0):
@@ -67,16 +69,25 @@ def build_structured_realm_context(realm_status):
         except (ValueError, TypeError):
             return default
     
-    # Extract key metrics (DFX returns strings, need to convert to int)
-    users_count = to_int(status_data.get('users_count', 0))
-    organizations_count = to_int(status_data.get('organizations_count', 0))
-    proposals_count = to_int(status_data.get('proposals_count', 0))
-    votes_count = to_int(status_data.get('votes_count', 0))
-    mandates_count = to_int(status_data.get('mandates_count', 0))
-    tasks_count = to_int(status_data.get('tasks_count', 0))
-    transfers_count = to_int(status_data.get('transfers_count', 0))
-    extensions = status_data.get('extensions', [])
-    realm_name = status_data.get('realm_name', 'Unnamed Realm')
+    # Extract all metrics (DFX returns strings, need to convert to int)
+    users_count = to_int(metrics.get('users_count', 0))
+    organizations_count = to_int(metrics.get('organizations_count', 0))
+    proposals_count = to_int(metrics.get('proposals_count', 0))
+    votes_count = to_int(metrics.get('votes_count', 0))
+    mandates_count = to_int(metrics.get('mandates_count', 0))
+    tasks_count = to_int(metrics.get('tasks_count', 0))
+    transfers_count = to_int(metrics.get('transfers_count', 0))
+    # Additional entities
+    codexes_count = to_int(metrics.get('codexes_count', 0))
+    disputes_count = to_int(metrics.get('disputes_count', 0))
+    instruments_count = to_int(metrics.get('instruments_count', 0))
+    licenses_count = to_int(metrics.get('licenses_count', 0))
+    trades_count = to_int(metrics.get('trades_count', 0))
+    realms_count = to_int(metrics.get('realms_count', 0))
+    
+    extensions = metrics.get('extensions', [])
+    realm_name = metrics.get('realm_name', 'Unnamed Realm')
+    version = metrics.get('version', 'Unknown')
     health_score = realm_status.get('health_score', 0)
     last_updated = realm_status.get('last_updated', 'Unknown')
     
@@ -111,6 +122,7 @@ def build_structured_realm_context(realm_status):
     context = f"""\n\n=== REALM ANALYSIS ===
 Realm: {realm_name}
 Principal: {realm_status.get('realm_principal', 'Unknown')}
+Version: {version}
 Health Score: {health_score}/100
 Size: {size_category} ({users_count} users)
 Activity: {activity_level}
@@ -127,9 +139,18 @@ Last Updated: {last_updated}
 • Active Mandates: {mandates_count}
 • Total Governance Actions: {total_governance_activity}
 
+=== LEGAL & REGULATORY ===
+• Codexes: {codexes_count}
+• Disputes: {disputes_count}
+• Licenses: {licenses_count}
+
+=== ECONOMIC METRICS ===
+• Instruments: {instruments_count}
+• Trades: {trades_count}
+• Transfers: {transfers_count}
+
 === OPERATIONAL METRICS ===
 • Tasks: {tasks_count}
-• Transfers: {transfers_count}
 • Total Operations: {total_operational_activity}"""
     
     # Add extension details
