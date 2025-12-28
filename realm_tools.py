@@ -77,7 +77,7 @@ REALM_TOOLS = [
         "type": "function",
         "function": {
             "name": "db_get",
-            "description": "Get entities from the realm database. Use this to look up users, proposals, votes, transfers, mandates, tasks, or organizations in a realm.",
+            "description": "Get entities from the realm database. Use this to query any entity type including: User, Proposal, Vote, Transfer, Mandate, Task, Organization, Codex, Dispute, Instrument, License, Trade, Contract, Invoice, Balance, Treasury, and more.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -95,7 +95,7 @@ REALM_TOOLS = [
         "type": "function",
         "function": {
             "name": "realm_status",
-            "description": "Get the current status of the realm including counts for users, proposals, votes, transfers, mandates, tasks, organizations, and installed extensions.",
+            "description": "Get the current status of the realm including counts for all entity types (users, proposals, votes, codexes, disputes, instruments, licenses, trades, etc.) and installed extensions.",
             "parameters": {
                 "type": "object",
                 "properties": {},
