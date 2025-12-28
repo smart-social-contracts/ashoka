@@ -144,29 +144,14 @@ def print_info(message: str):
 
 
 def load_env_config() -> str:
-    """Load MAIN_SERVER_HOST from public.env file"""
-    env_file = Path(__file__).parent / "public.env"
+    """Get API URL from environment variable or use default"""
+    # Check environment variable first
+    url = os.environ.get('ASHOKA_API_URL', '')
+    if url:
+        return url.rstrip('/')
     
-    if env_file.exists():
-        try:
-            with open(env_file, 'r') as f:
-                for line in f:
-                    line = line.strip()
-                    if line.startswith('MAIN_SERVER_HOST='):
-                        url = line.split('=', 1)[1].strip()
-                        # Handle case where URL might have quotes
-                        if url.startswith('"') and url.endswith('"'):
-                            url = url[1:-1]
-                        elif url.startswith("'") and url.endswith("'"):
-                            url = url[1:-1]
-                        # Remove trailing slash if present
-                        return url.rstrip('/')
-        except Exception as e:
-            print_info(f"Warning: Could not read public.env: {e}")
-            traceback.print_exc()
-    
-    # Fallback to localhost
-    return "http://localhost:5000"
+    # Default to production API
+    return "https://ashoka-api.realmsgos.dev"
 
 
 def cmd_ask(args, client: AshokaClient):
